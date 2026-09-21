@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${course.name + ' - Edit Student Grades'}">Edit Grades</title>
+    <link rel="stylesheet" th:href="@{/css/global.css}">
+    <link rel="stylesheet" th:href="@{/css/components.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/responsive.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div th:replace="~{fragments/sidebar :: sidebar('courses')}"></div>
+
+    <div class="main-wrapper">
+        <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+        <main class="main-content">
+            <div class="action-bar">
+                <a th:href="@{/teacher/{teacherId}/courses/{courseId}(teacherId=${teacher.id}, courseId=${course.id})}" class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span th:text="${'Back to ' + course.name}">Back to Course</span>
+                </a>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <div>
+                        <span class="badge badge-primary" th:text="${course.code != null ? course.code : 'COURSE'}" style="margin-bottom: 0.35rem;">CS101</span>
+                        <h1 class="card-title" style="font-size: 1.35rem;" th:text="${course.name + ' — Edit Grades'}">Edit Grades</h1>
+                    </div>
+                </div>
+
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive" style="border: none; box-shadow: none;">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Grade 1 (Midterm)</th>
+                                    <th>Grade 2 (Final)</th>
+                                    <th>Grade 3 (Project)</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="student, iterStat : ${students}">
+                                    <td style="font-weight: 600; color: var(--text);">
+                                        <div th:text="${student.firstName + ' ' + student.lastName}">Student Name</div>
+                                        <div style="font-size: 0.8rem; color: var(--muted);" th:text="${student.email}">student@email.com</div>
+                                    </td>
+                                    <td colspan="4" style="padding: 0;">
+                                        <form th:action="@{/teacher/{teacherId}/courses/{courseId}/editGrades/save/{gradeDetailsId}(teacherId=${teacher.id}, courseId=${course.id}, gradeDetailsId=${gradeDetailsList[iterStat.index].id})}" 
+                                              method="POST" style="margin: 0;">
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 140px; align-items: center; padding: 0.75rem 1.25rem; gap: 1rem;">
+                                                <div>
+                                                    <input type="number" step="any" th:name="gradeOne" 
+                                                           th:value="${gradeDetailsList[iterStat.index].gradeOne == -1 ? '' : gradeDetailsList[iterStat.index].gradeOne}" 
+                                                           class="form-control" placeholder="Not graded" style="padding: 0.45rem 0.65rem;">
+                                                </div>
+                                                <div>
+                                                    <input type="number" step="any" th:name="gradeTwo" 
+                                                           th:value="${gradeDetailsList[iterStat.index].gradeTwo == -1 ? '' : gradeDetailsList[iterStat.index].gradeTwo}" 
+                                                           class="form-control" placeholder="Not graded" style="padding: 0.45rem 0.65rem;">
+                                                </div>
+                                                <div>
+                                                    <input type="number" step="any" th:name="gradeThree" 
+                                                           th:value="${gradeDetailsList[iterStat.index].gradeThree == -1 ? '' : gradeDetailsList[iterStat.index].gradeThree}" 
+                                                           class="form-control" placeholder="Not graded" style="padding: 0.45rem 0.65rem;">
+                                                </div>
+                                                <div style="text-align: right;">
+                                                    <button type="submit" class="btn btn-primary btn-sm">
+                                                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                                                        <span>Save Grade</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/footer :: footer}"></div>
+        </main>
+    </div>
+</div>
+
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

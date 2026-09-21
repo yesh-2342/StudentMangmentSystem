@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Dashboard - Student Management System</title>
+    <link rel="stylesheet" th:href="@{/css/global.css}">
+    <link rel="stylesheet" th:href="@{/css/components.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/responsive.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Reusable Sidebar -->
+    <div th:replace="~{fragments/sidebar :: sidebar('dashboard')}"></div>
+
+    <div class="main-wrapper">
+        <!-- Reusable Top Navbar -->
+        <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+        <main class="main-content">
+            <!-- Header Section -->
+            <div class="dashboard-header" style="margin-bottom: 2rem;">
+                <h1 class="page-title">
+                    Welcome back, <span th:text="${teacher != null ? teacher.firstName : 'Professor'}">Instructor</span>! 👋
+                </h1>
+                <p class="page-subtitle">Here is a comprehensive summary of your assigned academic courses, enrolled students, and upcoming coursework.</p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <span class="stat-label">Total Courses</span>
+                        <span class="stat-value" th:text="${totalCourses != null ? totalCourses : (courses != null ? courses.size() : 0)}">0</span>
+                    </div>
+                    <div class="stat-icon stat-icon-blue">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <span class="stat-label">Total Students</span>
+                        <span class="stat-value" th:text="${totalStudents != null ? totalStudents : 0}">0</span>
+                    </div>
+                    <div class="stat-icon stat-icon-indigo">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <span class="stat-label">Total Assignments</span>
+                        <span class="stat-value" th:text="${totalAssignments != null ? totalAssignments : 0}">0</span>
+                    </div>
+                    <div class="stat-icon stat-icon-purple">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="m9 14 2 2 4-4"></path></svg>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <span class="stat-label">Upcoming Assignments</span>
+                        <span class="stat-value" th:text="${upcomingAssignments != null ? upcomingAssignments : 0}">0</span>
+                    </div>
+                    <div class="stat-icon stat-icon-amber">
+                        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Courses Section -->
+            <div class="section-header">
+                <div class="section-title">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>My Assigned Courses</span>
+                </div>
+            </div>
+
+            <div th:if="${courses == null || courses.size() == 0}" class="empty-state">
+                <div class="empty-icon">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                </div>
+                <h3 class="empty-title">No Courses Assigned</h3>
+                <p class="empty-desc">You do not currently have any courses assigned to your faculty profile.</p>
+            </div>
+
+            <div th:if="${courses != null && courses.size() > 0}" class="courses-grid" style="margin-bottom: 2.5rem;">
+                <div th:each="course : ${courses}" class="course-card">
+                    <div class="course-card-top">
+                        <span class="course-card-badge" th:text="${course.code != null ? course.code : 'COURSE'}">COURSE</span>
+                        <h3 class="course-card-title" th:text="${course.name}">Course Name</h3>
+                        
+                        <div class="course-meta-item">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                            <span>Enrolled Students: <strong th:text="${course.students != null ? course.students.size() : 0}">0</strong></span>
+                        </div>
+                    </div>
+                    <div class="course-card-bottom">
+                        <span style="font-size: 0.85rem; color: var(--muted);" th:text="${'Course ID #' + course.id}">ID</span>
+                        <a th:href="@{/teacher/{teacherId}/courses/{courseId}(teacherId=${teacher.id}, courseId=${course.id})}" 
+                           class="btn btn-primary btn-sm">
+                            <span>Manage Course</span>
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Assignments Section -->
+            <div th:if="${teacherAssignmentsList != null && teacherAssignmentsList.size() > 0}">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="m9 14 2 2 4-4"></path></svg>
+                        <span>Assignments Overview</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Assignment Title</th>
+                                <th>Course</th>
+                                <th>Due Date</th>
+                                <th>Days Left</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${teacherAssignmentsList}">
+                                <td>
+                                    <strong style="color: var(--text);" th:text="${item.assignment.name}">Assignment Name</strong>
+                                    <div th:if="${item.assignment.description != null}" style="font-size: 0.8rem; color: var(--muted);" th:text="${item.assignment.description}">Description</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-secondary" th:text="${item.courseCode != '' ? item.courseCode : item.courseName}">CS101</span>
+                                </td>
+                                <td th:text="${item.assignment.dueDate}">2026-10-01</td>
+                                <td>
+                                    <span th:if="${item.assignment.daysRemaining >= 0}" class="badge badge-primary" th:text="${item.assignment.daysRemaining + ' days'}">5 days</span>
+                                    <span th:if="${item.assignment.daysRemaining < 0}" class="badge badge-danger">Overdue</span>
+                                </td>
+                                <td style="text-align: right;">
+                                    <a th:href="@{/teacher/{teacherId}/courses/{courseId}/assignments/{assignmentId}(teacherId=${teacher.id}, courseId=${item.courseId}, assignmentId=${item.assignment.id})}" 
+                                       class="btn btn-outline btn-sm">
+                                        <span>Submissions</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reusable Footer -->
+            <div th:replace="~{fragments/footer :: footer}"></div>
+        </main>
+    </div>
+</div>
+
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

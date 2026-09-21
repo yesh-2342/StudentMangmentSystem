@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${course.name + ' - Course Details'}">Course Details</title>
+    <link rel="stylesheet" th:href="@{/css/global.css}">
+    <link rel="stylesheet" th:href="@{/css/components.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/responsive.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div th:replace="~{fragments/sidebar :: sidebar('courses')}"></div>
+
+    <div class="main-wrapper">
+        <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+        <main class="main-content">
+            <!-- Breadcrumbs / Action Header -->
+            <div class="action-bar">
+                <a th:href="@{/student/{studentId}/courses(studentId=${student.id})}" class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span>Back to Dashboard</span>
+                </a>
+            </div>
+
+            <!-- Course Header Banner -->
+            <div class="course-detail-header">
+                <span class="course-detail-badge" th:text="${course.code != null ? course.code : 'COURSE'}">CS101</span>
+                <h1 class="course-detail-title" th:text="${course.name}">Course Name</h1>
+                <div class="course-detail-meta">
+                    <span th:if="${course.teacher != null}">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <span>Instructor: <strong th:text="${course.teacher.firstName + ' ' + course.teacher.lastName}">Instructor Name</strong></span>
+                    </span>
+                    <span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                        <span><strong th:text="${assignments != null ? assignments.size() : 0}">0</strong> Assignments</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Assignments Section -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <h2 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                        <span>Course Assignments</span>
+                    </h2>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div th:if="${assignments == null || assignments.size() == 0}" class="empty-state" style="border: none;">
+                        <div class="empty-icon">
+                            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        </div>
+                        <h3 class="empty-title">No Assignments Published</h3>
+                        <p class="empty-desc">Your instructor has not created any assignments for this course yet.</p>
+                    </div>
+
+                    <div th:if="${assignments != null && assignments.size() > 0}" class="table-responsive" style="border: none; box-shadow: none;">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Assignment Name</th>
+                                    <th>Description</th>
+                                    <th>Due Date</th>
+                                    <th>Deadline Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="assignment : ${assignments}">
+                                    <td>
+                                        <strong style="color: var(--text);" th:text="${assignment.name}">Assignment 1</strong>
+                                    </td>
+                                    <td th:text="${assignment.description != null && assignment.description != '' ? assignment.description : 'No description provided'}">Description</td>
+                                    <td th:text="${assignment.dueDate}">2026-10-15</td>
+                                    <td>
+                                        <span th:if="${assignment.daysRemaining >= 0}" class="badge badge-primary" th:text="${assignment.daysRemaining + ' days left'}">5 days</span>
+                                        <span th:if="${assignment.daysRemaining < 0}" class="badge badge-danger">Overdue</span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <a th:href="@{/student/{studentId}/courses/{courseId}/assignment/{assignmentId}(studentId=${student.id}, courseId=${course.id}, assignmentId=${assignment.id})}" 
+                                           class="btn btn-primary btn-sm">
+                                            <span>View & Submit</span>
+                                            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grades Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        <span>Evaluation & Exam Grades</span>
+                    </h2>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive" style="border: none; box-shadow: none;">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Assessment</th>
+                                    <th>Evaluation Component</th>
+                                    <th>Grade / Score</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Grade 1</strong></td>
+                                    <td>Midterm / First Exam</td>
+                                    <td>
+                                        <span th:if="${gradeDetails != null && gradeDetails.gradeOne != -1}" style="font-size: 1.1rem; font-weight: 700; color: var(--text);" th:text="${gradeDetails.gradeOne}">85</span>
+                                        <span th:if="${gradeDetails == null || gradeDetails.gradeOne == -1}" style="color: var(--muted); font-style: italic;">Not graded</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${gradeDetails != null && gradeDetails.gradeOne != -1}" class="badge badge-success">Recorded</span>
+                                        <span th:if="${gradeDetails == null || gradeDetails.gradeOne == -1}" class="badge badge-secondary">Pending</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Grade 2</strong></td>
+                                    <td>Final / Second Exam</td>
+                                    <td>
+                                        <span th:if="${gradeDetails != null && gradeDetails.gradeTwo != -1}" style="font-size: 1.1rem; font-weight: 700; color: var(--text);" th:text="${gradeDetails.gradeTwo}">90</span>
+                                        <span th:if="${gradeDetails == null || gradeDetails.gradeTwo == -1}" style="color: var(--muted); font-style: italic;">Not graded</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${gradeDetails != null && gradeDetails.gradeTwo != -1}" class="badge badge-success">Recorded</span>
+                                        <span th:if="${gradeDetails == null || gradeDetails.gradeTwo == -1}" class="badge badge-secondary">Pending</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Grade 3</strong></td>
+                                    <td>Project / Continuous Evaluation</td>
+                                    <td>
+                                        <span th:if="${gradeDetails != null && gradeDetails.gradeThree != -1}" style="font-size: 1.1rem; font-weight: 700; color: var(--text);" th:text="${gradeDetails.gradeThree}">95</span>
+                                        <span th:if="${gradeDetails == null || gradeDetails.gradeThree == -1}" style="color: var(--muted); font-style: italic;">Not graded</span>
+                                    </td>
+                                    <td>
+                                        <span th:if="${gradeDetails != null && gradeDetails.gradeThree != -1}" class="badge badge-success">Recorded</span>
+                                        <span th:if="${gradeDetails == null || gradeDetails.gradeThree == -1}" class="badge badge-secondary">Pending</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/footer :: footer}"></div>
+        </main>
+    </div>
+</div>
+
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

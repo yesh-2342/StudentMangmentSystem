@@ -1,0 +1,122 @@
+package com.Studentmangment.studentmanagement.service;
+
+
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.Studentmangment.studentmanagement.dao.RoleDao;
+import com.Studentmangment.studentmanagement.dao.StudentDao;
+import com.Studentmangment.studentmanagement.entity.Role;
+import com.Studentmangment.studentmanagement.entity.Student;
+import com.Studentmangment.studentmanagement.user.UserDto;
+
+@Service
+public class StudentServiceImpl implements StudentService {
+	
+	@Autowired
+	private StudentDao studentDao;
+	
+	@Autowired 
+	private RoleDao roleDao;
+	
+
+	@Override
+	@Transactional
+	public Student findByStudentName(String studentName) {
+		return studentDao.findByStudentName(studentName);
+	}
+	
+	@Override
+	@Transactional
+	public Student findByStudentId(int id) {
+		return studentDao.findByStudentId(id);
+	}
+
+	@Override
+	@Transactional
+	public void save(UserDto userDto) {
+		Student student = new Student();
+		student.setUserName(userDto.getUserName());
+		student.setPassword(new BCryptPasswordEncoder().encode(userDto.getPassword()));
+		student.setFirstName(userDto.getFirstName());
+		student.setLastName(userDto.getLastName());
+		student.setEmail(userDto.getEmail());		
+	   Role studentRole = roleDao.findRoleByName("STUDENT");
+		if (studentRole == null) {
+			studentRole = roleDao.findRoleByName("ROLE_STUDENT");
+		}
+		if (studentRole == null && userDto.getRole() != null) {
+			studentRole = userDto.getRole();
+		}
+
+		student.setRole(studentRole);
+		studentDao.save(student);
+	}
+	
+	@Override
+	@Transactional
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+		Student student = studentDao.findByStudentName(username);
+		if (student == null) {
+			throw new UsernameNotFoundException("Invalid username or password.");
+		}
+		Collection<Role> role = new ArrayList<>();
+		if (student.getRole() != null) {
+			role.add(student.getRole());
+		}
+		return new org.springframework.security.core.userdetails.User(student.getUserName(), student.getPassword(),
+				mapRolesToAuthorities(role));
+	}
+	
+	private Collection<? extends GrantedAuthority> mapRolesToAuthorities(Collection<Role> roles) {
+		List<GrantedAuthority> authorities = new ArrayList<>();
+		for (Role role : roles) {
+			if (role != null && role.getName() != null) {
+				String roleName = role.getName().trim();
+				authorities.add(new SimpleGrantedAuthority(roleName));
+				if (!roleName.startsWith("ROLE_")) {
+					authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+				} else if (roleName.length() > 5) {
+					authorities.add(new SimpleGrantedAuthority(roleName.substring(5)));
+				}
+			}
+		}
+		if (authorities.isEmpty()) {
+			authorities.add(new SimpleGrantedAuthority("ROLE_STUDENT"));
+			authorities.add(new SimpleGrantedAuthority("STUDENT"));
+		}
+		return authorities;
+	}
+
+	@Override
+	@Transactional
+	public List<Student> findAllStudents() {
+		return studentDao.findAllStudents();
+	}
+
+	@Override
+	@Transactional
+	public void save(Student student) {
+		studentDao.save(student);
+		
+	}
+
+	@Override
+	@Transactional
+	public void deleteById(int id) {
+		studentDao.deleteById(id);
+	}
+
+}

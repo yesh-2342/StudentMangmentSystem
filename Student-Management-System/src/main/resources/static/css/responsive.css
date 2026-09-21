@@ -1,0 +1,162 @@
+/* ========================================================
+   RESPONSIVE CSS - Student Management System
+   ======================================================== */
+
+/* Large screens (up to 1440px) */
+@media (max-width: 1440px) {
+    .main-content {
+        padding: 1.75rem 2rem;
+    }
+}
+
+/* Tablets and small laptops (up to 1024px) */
+@media (max-width: 1024px) {
+    :root {
+        --sidebar-width: 240px;
+    }
+
+    .main-wrapper {
+        margin-left: 0;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.25);
+    }
+
+    .sidebar-toggle-btn {
+        display: inline-flex;
+    }
+
+    /* Backdrop when mobile sidebar is open */
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 95;
+    }
+
+    .sidebar-backdrop.show {
+        display: block;
+    }
+
+    .top-navbar {
+        padding: 0 1.5rem;
+    }
+
+    .main-content {
+        padding: 1.5rem;
+    }
+
+    .courses-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+/* Tablets / Mobile Landscape (up to 768px) */
+@media (max-width: 768px) {
+    .login-page {
+        flex-direction: column;
+    }
+
+    .login-hero {
+        padding: 2.5rem 1.75rem;
+    }
+
+    .hero-headline {
+        font-size: 2rem;
+    }
+
+    .hero-description {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .login-form-container {
+        padding: 2.5rem 1.5rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .stat-card {
+        padding: 1rem 1.25rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .navbar-search {
+        display: none;
+    }
+
+    .user-details {
+        display: none;
+    }
+
+    .course-detail-header {
+        padding: 1.5rem;
+    }
+
+    .course-detail-title {
+        font-size: 1.5rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+}
+
+/* Small Mobile (up to 480px and 375px) */
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .top-navbar {
+        padding: 0 1rem;
+    }
+
+    .main-content {
+        padding: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.4rem;
+    }
+
+    .card-body {
+        padding: 1.25rem 1rem;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .action-bar .btn {
+        width: auto;
+    }
+
+    .course-detail-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .login-card-wrapper {
+        padding: 0;
+    }
+}

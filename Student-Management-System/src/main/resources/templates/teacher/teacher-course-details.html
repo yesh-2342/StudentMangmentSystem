@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${course.name + ' - Faculty Course Management'}">Course Management</title>
+    <link rel="stylesheet" th:href="@{/css/global.css}">
+    <link rel="stylesheet" th:href="@{/css/components.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/responsive.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div th:replace="~{fragments/sidebar :: sidebar('courses')}"></div>
+
+    <div class="main-wrapper">
+        <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+        <main class="main-content">
+            <!-- Navigation Action Bar -->
+            <div class="action-bar">
+                <a th:href="@{/teacher/{teacherId}/courses(teacherId=${teacher.id})}" class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span>Back to Faculty Dashboard</span>
+                </a>
+
+                <div style="display: flex; gap: 0.75rem;">
+                    <a th:href="@{/teacher/{teacherId}/courses/{courseId}/addNewAssignment(teacherId=${teacher.id}, courseId=${course.id})}" 
+                       class="btn btn-primary btn-sm">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>New Assignment</span>
+                    </a>
+
+                    <a th:if="${students != null && students.size() > 0}" 
+                       th:href="@{/teacher/{teacherId}/courses/{courseId}/editGrades(teacherId=${teacher.id}, courseId=${course.id})}" 
+                       class="btn btn-secondary btn-sm">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        <span>Edit Grades</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Course Header Banner -->
+            <div class="course-detail-header">
+                <span class="course-detail-badge" th:text="${course.code != null ? course.code : 'COURSE'}">COURSE CODE</span>
+                <h1 class="course-detail-title" th:text="${course.name + ' — Course Details'}">Course Name</h1>
+                <div class="course-detail-meta">
+                    <span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                        <span>Enrolled Students: <strong th:text="${students != null ? students.size() : 0}">0</strong></span>
+                    </span>
+                    <span>
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                        <span>Active Coursework: <strong th:text="${assignments != null ? assignments.size() : 0}">0</strong></span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Empty Students Alert -->
+            <div th:if="${students == null || students.size() == 0}" class="empty-state" style="margin-bottom: 2rem;">
+                <div class="empty-icon">
+                    <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                </div>
+                <h3 class="empty-title">No Students Enrolled</h3>
+                <p class="empty-desc">There are currently no students enrolled in this course. At least one student is required to view course assignments and grades.</p>
+            </div>
+
+            <div th:if="${students != null && students.size() > 0}">
+                <!-- Section 1: Enrolled Students -->
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header">
+                        <h2 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                            <span>Enrolled Students</span>
+                        </h2>
+                        <span class="badge badge-primary" th:text="${students.size() + ' Total'}">0 Total</span>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-responsive" style="border: none; box-shadow: none;">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">Student ID</th>
+                                        <th>First Name</th>
+                                        <th>Last Name</th>
+                                        <th>Institutional Email</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="studentItem : ${students}">
+                                        <td>
+                                            <span class="badge badge-secondary" th:text="${'#' + studentItem.id}">#1</span>
+                                        </td>
+                                        <td style="font-weight: 600; color: var(--text);" th:text="${studentItem.firstName}">John</td>
+                                        <td style="font-weight: 600; color: var(--text);" th:text="${studentItem.lastName}">Doe</td>
+                                        <td>
+                                            <span style="color: var(--muted);" th:text="${studentItem.email}">john.doe@university.edu</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Assignments -->
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header">
+                        <h2 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                            <span>Assignments</span>
+                        </h2>
+                        <a th:href="@{/teacher/{teacherId}/courses/{courseId}/addNewAssignment(teacherId=${teacher.id}, courseId=${course.id})}" 
+                           class="btn btn-primary btn-sm">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <span>Add Assignment</span>
+                        </a>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div th:if="${assignments == null || assignments.size() == 0}" class="empty-state" style="border: none;">
+                            <div class="empty-icon">
+                                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            </div>
+                            <h3 class="empty-title">No Assignments Created</h3>
+                            <p class="empty-desc">You have not published any assignments for this course. Click the button above to add one.</p>
+                        </div>
+
+                        <div th:if="${assignments != null && assignments.size() > 0}" class="table-responsive" style="border: none; box-shadow: none;">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Due Date</th>
+                                        <th>Time Remaining</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="assignment : ${assignments}">
+                                        <td>
+                                            <strong style="color: var(--text);" th:text="${assignment.name}">Assignment 1</strong>
+                                        </td>
+                                        <td th:text="${assignment.description != null && assignment.description != '' ? assignment.description : 'No description'}">Desc</td>
+                                        <td th:text="${assignment.dueDate}">2026-10-15</td>
+                                        <td>
+                                            <span th:if="${assignment.daysRemaining >= 0}" class="badge badge-primary" th:text="${assignment.daysRemaining + ' days left'}">3 days</span>
+                                            <span th:if="${assignment.daysRemaining < 0}" class="badge badge-danger">Overdue</span>
+                                        </td>
+                                        <td style="text-align: right; white-space: nowrap;">
+                                            <a th:href="@{/teacher/{teacherId}/courses/{courseId}/assignments/{assignmentId}(teacherId=${teacher.id}, courseId=${course.id}, assignmentId=${assignment.id})}" 
+                                               class="btn btn-outline btn-sm">
+                                                <span>Submissions</span>
+                                            </a>
+                                            <a th:href="@{/teacher/{teacherId}/courses/{courseId}/assignments/{assignmentId}/delete(teacherId=${teacher.id}, courseId=${course.id}, assignmentId=${assignment.id})}" 
+                                               class="btn btn-danger-outline btn-sm"
+                                               onclick="return confirm('Are you sure you want to permanently delete this assignment?');">
+                                                <span>Delete</span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Student Grades -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            <span>Student Evaluation & Grades</span>
+                        </h2>
+                        <a th:href="@{/teacher/{teacherId}/courses/{courseId}/editGrades(teacherId=${teacher.id}, courseId=${course.id})}" 
+                           class="btn btn-secondary btn-sm">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            <span>Edit Grades</span>
+                        </a>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="table-responsive" style="border: none; box-shadow: none;">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Enrolled Student</th>
+                                        <th>Grade 1</th>
+                                        <th>Grade 2</th>
+                                        <th>Grade 3</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="element : ${studentGradeList}">
+                                        <td colspan="5" style="padding: 0;">
+                                            <table class="modern-table" style="margin: 0; width: 100%;">
+                                                <tbody>
+                                                    <tr th:each="studentItem, iterStat : ${element.key}">
+                                                        <td style="font-weight: 600; color: var(--text); width: 30%;" th:text="${studentItem.firstName + ' ' + studentItem.lastName}">Student Name</td>
+                                                        <td style="width: 17.5%;">
+                                                            <span th:if="${element.value[iterStat.index].gradeOne != -1}" style="font-weight: 700;" th:text="${element.value[iterStat.index].gradeOne}">80</span>
+                                                            <span th:if="${element.value[iterStat.index].gradeOne == -1}" style="color: var(--muted); font-style: italic;">Not graded</span>
+                                                        </td>
+                                                        <td style="width: 17.5%;">
+                                                            <span th:if="${element.value[iterStat.index].gradeTwo != -1}" style="font-weight: 700;" th:text="${element.value[iterStat.index].gradeTwo}">85</span>
+                                                            <span th:if="${element.value[iterStat.index].gradeTwo == -1}" style="color: var(--muted); font-style: italic;">Not graded</span>
+                                                        </td>
+                                                        <td style="width: 17.5%;">
+                                                            <span th:if="${element.value[iterStat.index].gradeThree != -1}" style="font-weight: 700;" th:text="${element.value[iterStat.index].gradeThree}">90</span>
+                                                            <span th:if="${element.value[iterStat.index].gradeThree == -1}" style="color: var(--muted); font-style: italic;">Not graded</span>
+                                                        </td>
+                                                        <td style="width: 17.5%;">
+                                                            <span th:if="${element.value[iterStat.index].gradeOne != -1 || element.value[iterStat.index].gradeTwo != -1 || element.value[iterStat.index].gradeThree != -1}" class="badge badge-success">Evaluated</span>
+                                                            <span th:if="${element.value[iterStat.index].gradeOne == -1 && element.value[iterStat.index].gradeTwo == -1 && element.value[iterStat.index].gradeThree == -1}" class="badge badge-secondary">Pending</span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/footer :: footer}"></div>
+        </main>
+    </div>
+</div>
+
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

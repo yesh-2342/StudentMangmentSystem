@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Assignment - Student Management System</title>
+    <link rel="stylesheet" th:href="@{/css/global.css}">
+    <link rel="stylesheet" th:href="@{/css/components.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/responsive.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div th:replace="~{fragments/sidebar :: sidebar('courses')}"></div>
+
+    <div class="main-wrapper">
+        <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+        <main class="main-content">
+            <div class="action-bar">
+                <a th:href="@{/teacher/{teacherId}/courses/{courseId}(teacherId=${teacher.id}, courseId=${course.id})}" class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span th:text="${'Back to ' + course.name}">Back to Course</span>
+                </a>
+            </div>
+
+            <div class="card" style="max-width: 650px; margin: 0 auto 2rem auto;">
+                <div class="card-header">
+                    <div>
+                        <span class="badge badge-primary" th:text="${course.code != null ? course.code : 'COURSE'}" style="margin-bottom: 0.35rem;">CS101</span>
+                        <h1 class="card-title" style="font-size: 1.35rem;">Create New Assignment</h1>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <form th:action="@{/teacher/{teacherId}/courses/{courseId}/addNewAssignment/save(teacherId=${teacher.id}, courseId=${course.id})}" 
+                          th:object="${assignment}" method="POST">
+                        
+                        <div class="form-group">
+                            <label for="name" class="form-label">Assignment Title</label>
+                            <input type="text" id="name" th:field="*{name}" class="form-control" placeholder="e.g. Midterm Essay or Homework 1" required>
+                            <p th:if="${#fields.hasErrors('name')}" class="form-error">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <span>Please enter a valid title.</span>
+                            </p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description" class="form-label">Description & Instructions</label>
+                            <input type="text" id="description" th:field="*{description}" class="form-control" placeholder="Specify instructions, requirements, or submission guidelines" required>
+                            <p th:if="${#fields.hasErrors('description')}" class="form-error">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <span>Please enter a description.</span>
+                            </p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dateControl" class="form-label">Due Date</label>
+                            <input type="date" id="dateControl" th:field="*{dueDate}" class="form-control" required>
+                            <p th:if="${#fields.hasErrors('dueDate')}" class="form-error">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <span>Please select a due date.</span>
+                            </p>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem;">
+                            <a th:href="@{/teacher/{teacherId}/courses/{courseId}(teacherId=${teacher.id}, courseId=${course.id})}" class="btn btn-outline">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                                <span>Publish Assignment</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/footer :: footer}"></div>
+        </main>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('dateControl');
+        if (dateInput) {
+            dateInput.setAttribute('min', today);
+        }
+    });
+</script>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

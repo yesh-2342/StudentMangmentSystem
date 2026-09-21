@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignment Submissions Status - Student Management System</title>
+    <link rel="stylesheet" th:href="@{/css/global.css}">
+    <link rel="stylesheet" th:href="@{/css/components.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/responsive.css}">
+</head>
+<body>
+
+<div class="app-container">
+    <div th:replace="~{fragments/sidebar :: sidebar('courses')}"></div>
+
+    <div class="main-wrapper">
+        <div th:replace="~{fragments/navbar :: navbar}"></div>
+
+        <main class="main-content">
+            <div class="action-bar">
+                <a th:href="@{/teacher/{teacherId}/courses/{courseId}(teacherId=${teacher.id}, courseId=${course.id})}" class="btn btn-outline btn-sm">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    <span th:text="${'Back to ' + course.name}">Back to Course</span>
+                </a>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <div>
+                        <span class="badge badge-primary" th:text="${course.code != null ? course.code : 'COURSE'}" style="margin-bottom: 0.35rem;">CS101</span>
+                        <h1 class="card-title" style="font-size: 1.35rem;">Student Assignment Submission Tracking</h1>
+                    </div>
+                </div>
+
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-responsive" style="border: none; box-shadow: none;">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Student Name</th>
+                                    <th>Institutional Email</th>
+                                    <th>Submission Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="element : ${list}">
+                                    <td colspan="4" style="padding: 0;">
+                                        <table class="modern-table" style="margin: 0; width: 100%;">
+                                            <tbody>
+                                                <tr th:each="student, iterStat : ${element.key}">
+                                                    <td style="width: 15%;">
+                                                        <span class="badge badge-secondary" th:text="${'#' + student.id}">#1</span>
+                                                    </td>
+                                                    <td style="font-weight: 600; color: var(--text); width: 30%;" th:text="${student.firstName + ' ' + student.lastName}">Student Name</td>
+                                                    <td style="color: var(--muted); width: 35%;" th:text="${student.email}">student@email.com</td>
+                                                    <td style="width: 20%;">
+                                                        <span th:if="${element.value[iterStat.index] == 'completed'}" class="badge badge-success">
+                                                            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                            <span>Completed</span>
+                                                        </span>
+                                                        <span th:if="${element.value[iterStat.index] != 'completed'}" class="badge badge-warning">
+                                                            <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                                            <span>Incomplete</span>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div th:replace="~{fragments/footer :: footer}"></div>
+        </main>
+    </div>
+</div>
+
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>
