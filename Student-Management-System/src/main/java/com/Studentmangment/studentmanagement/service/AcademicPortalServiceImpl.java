@@ -215,6 +215,7 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
             row.put("dayOfWeek", slot.getDayOfWeek());
             row.put("startTime", slot.getStartTime());
             row.put("endTime", slot.getEndTime());
+            row.put("status", slot.getStatus() != null ? slot.getStatus() : "AVAILABLE");
             row.put("notes", slot.getNotes());
             rows.add(row);
         }
@@ -247,6 +248,11 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
         slot.setDayOfWeek(stringValue(payload.get("dayOfWeek")));
         slot.setStartTime(parseTime(payload.get("startTime")));
         slot.setEndTime(parseTime(payload.get("endTime")));
+        if (payload.get("status") != null && !String.valueOf(payload.get("status")).isBlank()) {
+            slot.setStatus(stringValue(payload.get("status")).toUpperCase());
+        } else if (slot.getStatus() == null) {
+            slot.setStatus("AVAILABLE");
+        }
         slot.setNotes(stringValue(payload.get("notes")));
         FacultyAvailability saved = availabilityRepository.save(slot);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -488,6 +494,15 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
                     records.addAll(attendanceRecordRepository.findByCourseIdOrderBySessionDateDesc(course.getId()));
                 }
             }
+            List<AttendanceRecord> demoRecords = attendanceRecordRepository.findByRecordedByTeacherIdOrderBySessionDateDesc(teacher.getId());
+            for (AttendanceRecord dr : demoRecords) {
+                if (dr.getIsDemo() != null && dr.getIsDemo()) {
+                    if (!records.contains(dr)) {
+                        records.add(dr);
+                    }
+                }
+            }
+            records.sort((a, b) -> b.getSessionDate().compareTo(a.getSessionDate()));
         } else {
             records = attendanceRecordRepository.findAll();
         }
@@ -507,12 +522,17 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
         if (!(SecurityRoles.isTeacher(auth) || SecurityRoles.isAdmin(auth))) {
             throw new AccessDeniedException("Students cannot record class attendance");
         }
+        boolean isDemo = Boolean.TRUE.equals(payload.get("isDemo")) || (payload.get("isDemo") instanceof String && "true".equalsIgnoreCase((String) payload.get("isDemo")));
         int courseId = intValue(payload.get("courseId"));
-        if (!canManageCourse(auth, courseId)) {
+        if (!isDemo && !canManageCourse(auth, courseId)) {
             throw new AccessDeniedException("Not authorized for this class");
         }
         LocalDate sessionDate = LocalDate.parse(stringValue(payload.get("sessionDate")));
         Integer teacherId = SecurityRoles.isTeacher(auth) ? currentTeacher(auth).getId() : null;
+        String demoCourseName = stringValue(payload.get("demoCourseName"));
+        String classSection = payload.get("section") != null ? stringValue(payload.get("section")) : (payload.get("classSection") != null ? stringValue(payload.get("classSection")) : null);
+        String sessionPeriod = payload.get("sessionPeriod") != null ? stringValue(payload.get("sessionPeriod")) : (payload.get("period") != null ? stringValue(payload.get("period")) : null);
+        String commonRemarks = payload.get("remarks") != null ? stringValue(payload.get("remarks")) : null;
 
         int saved = 0;
         if (payload.get("records") instanceof List) {
@@ -520,7 +540,8 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
             for (Object entry : entries) {
                 Map<String, Object> item = (Map<String, Object>) entry;
                 int studentId = intValue(item.get("studentId"));
-                if (!studentInCourse(studentId, courseId)) {
+                String demoStudentName = stringValue(item.get("studentName"));
+                if (!isDemo && !studentInCourse(studentId, courseId)) {
                     throw new AccessDeniedException("Student is not enrolled in this class");
                 }
                 AttendanceRecord record = attendanceRecordRepository
@@ -530,12 +551,24 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
                 record.setCourseId(courseId);
                 record.setSessionDate(sessionDate);
                 record.setStatus(stringValue(item.get("status")).toUpperCase());
+                record.setClassSection(item.get("section") != null ? stringValue(item.get("section")) : classSection);
+                record.setSessionPeriod(item.get("sessionPeriod") != null ? stringValue(item.get("sessionPeriod")) : sessionPeriod);
+                record.setRemarks(item.get("remarks") != null ? stringValue(item.get("remarks")) : commonRemarks);
                 record.setRecordedByTeacherId(teacherId);
+                record.setIsDemo(isDemo);
+                if (isDemo) {
+                    record.setDemoStudentName(demoStudentName);
+                    record.setDemoCourseName(demoCourseName);
+                }
                 attendanceRecordRepository.save(record);
                 saved++;
             }
         } else if (payload.get("studentId") != null) {
             int studentId = intValue(payload.get("studentId"));
+            String demoStudentName = stringValue(payload.get("studentName"));
+            if (!isDemo && !studentInCourse(studentId, courseId)) {
+                throw new AccessDeniedException("Student is not enrolled in this class");
+            }
             AttendanceRecord record = attendanceRecordRepository
                 .findByStudentIdAndCourseIdAndSessionDate(studentId, courseId, sessionDate)
                 .orElseGet(AttendanceRecord::new);
@@ -543,14 +576,22 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
             record.setCourseId(courseId);
             record.setSessionDate(sessionDate);
             record.setStatus(stringValue(payload.get("status")).toUpperCase());
+            record.setClassSection(classSection);
+            record.setSessionPeriod(sessionPeriod);
+            record.setRemarks(commonRemarks);
             record.setRecordedByTeacherId(teacherId);
+            record.setIsDemo(isDemo);
+            if (isDemo) {
+                record.setDemoStudentName(demoStudentName);
+                record.setDemoCourseName(demoCourseName);
+            }
             attendanceRecordRepository.save(record);
             saved++;
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("saved", saved);
-        result.put("message", "Attendance recorded");
+        result.put("message", isDemo ? "Demo class attendance recorded" : "Attendance recorded");
         return result;
     }
 
@@ -606,10 +647,12 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
             throw new AccessDeniedException("Only faculty and administrators can publish announcements");
         }
         AcademicNotification item = new AcademicNotification();
-        item.setRecipientRole(SecurityRoles.normalize(stringValue(payload.get("recipientRole"))));
+        String targetRole = payload.get("recipientRole") != null ? stringValue(payload.get("recipientRole")) : (payload.get("targetRole") != null ? stringValue(payload.get("targetRole")) : "ALL");
+        item.setRecipientRole(SecurityRoles.normalize(targetRole));
         item.setRecipientUserId(payload.get("recipientUserId") == null ? 0 : intValue(payload.get("recipientUserId")));
         item.setTitle(stringValue(payload.get("title")));
-        item.setMessage(stringValue(payload.get("message")));
+        String messageText = payload.get("message") != null ? stringValue(payload.get("message")) : stringValue(payload.get("content"));
+        item.setMessage(messageText != null ? messageText : "Announcement");
         item.setNotificationType(stringValue(payload.get("notificationType")) != null ? stringValue(payload.get("notificationType")).toUpperCase() : "ANNOUNCEMENT");
         item.setRead(false);
         AcademicNotification saved = notificationRepository.save(item);
@@ -703,6 +746,13 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
             ? (targetAverage - (currentAverage * (completedWeight / 100.0))) / (remainingWeight / 100.0)
             : targetAverage;
         requiredScore = Math.round(requiredScore * 10.0) / 10.0;
+        boolean targetAchievable = requiredScore <= 100.0 && requiredScore >= 0.0;
+        String targetFeasibility = targetAchievable ? "FEASIBLE" : (requiredScore > 100.0 ? "MATHEMATICALLY_INFEASIBLE" : "ALREADY_ACHIEVED");
+        String feasibilityNote = targetAchievable
+            ? String.format("Target goal of %.1f%% is mathematically feasible: requires %.1f%% on remaining work.", targetAverage, Math.max(0, requiredScore))
+            : (requiredScore > 100.0
+                ? String.format("Target goal of %.1f%% is mathematically infeasible: requires %.1f%% on remaining assessments (exceeds 100%% maximum score).", targetAverage, requiredScore)
+                : String.format("Current baseline of %.1f%% already satisfies target goal of %.1f%% even with 0%% on remaining assessments.", currentAverage, targetAverage));
 
         // 3. Calculate Projected Attendance
         // Assume baseline 10 sessions logged
@@ -729,6 +779,7 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
         if (!currentRiskCategory.equals(projectedRiskCategory)) {
             contributingFactors.add(String.format("Status transition: '%s' to '%s'.", currentRiskCategory, projectedRiskCategory));
         }
+        contributingFactors.add(feasibilityNote);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("simulated", true);
@@ -744,6 +795,9 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
         result.put("projectedAverage", projectedAverage);
         result.put("averageDelta", round(projectedAverage - currentAverage));
         result.put("requiredScoreOnRemaining", requiredScore);
+        result.put("targetAchievable", targetAchievable);
+        result.put("targetFeasibility", targetFeasibility);
+        result.put("feasibilityNote", feasibilityNote);
         result.put("projectedAttendance", projectedAttendance);
         result.put("attendanceDelta", round(projectedAttendance - currentAttendance));
         result.put("projectedRiskCategory", projectedRiskCategory);
@@ -820,18 +874,27 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
     }
 
     private Map<String, Object> attendanceRow(AttendanceRecord record) {
-        Student student = studentService.findByStudentId(record.getStudentId());
-        Course course = courseService.findCourseById(record.getCourseId());
+        boolean isDemo = record.getIsDemo() != null && record.getIsDemo();
+        Student student = !isDemo ? studentService.findByStudentId(record.getStudentId()) : null;
+        Course course = !isDemo ? courseService.findCourseById(record.getCourseId()) : null;
         Teacher teacher = record.getRecordedByTeacherId() != null ? teacherService.findByTeacherId(record.getRecordedByTeacherId()) : null;
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", record.getId());
         row.put("studentId", record.getStudentId());
-        row.put("studentName", student == null ? "Student" : student.getFirstName() + " " + student.getLastName());
+        row.put("studentName", isDemo
+            ? (record.getDemoStudentName() != null ? record.getDemoStudentName() : "Demo Student #" + Math.abs(record.getStudentId()))
+            : (student == null ? "Student" : student.getFirstName() + " " + student.getLastName()));
         row.put("courseId", record.getCourseId());
-        row.put("courseName", course == null ? null : course.getName());
-        row.put("courseCode", course == null ? null : course.getCode());
+        row.put("courseName", isDemo
+            ? (record.getDemoCourseName() != null ? record.getDemoCourseName() : "Demo Class")
+            : (course == null ? null : course.getName()));
+        row.put("courseCode", isDemo ? "DEMO" : (course == null ? null : course.getCode()));
         row.put("sessionDate", record.getSessionDate());
         row.put("status", record.getStatus());
+        row.put("section", record.getClassSection() != null ? record.getClassSection() : "Section A");
+        row.put("sessionPeriod", record.getSessionPeriod() != null ? record.getSessionPeriod() : "Period 1 (08:30 - 09:30)");
+        row.put("remarks", record.getRemarks() != null ? record.getRemarks() : "");
+        row.put("isDemo", isDemo);
         row.put("recordedByTeacherName", teacher != null ? teacher.getFirstName() + " " + teacher.getLastName() : "System / Faculty");
         return row;
     }
@@ -914,8 +977,14 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
 
     private Double attendancePercent(List<AttendanceRecord> records) {
         if (records == null || records.isEmpty()) return null;
-        long present = records.stream().filter(item -> "PRESENT".equalsIgnoreCase(item.getStatus()) || "LATE".equalsIgnoreCase(item.getStatus())).count();
-        return round((present * 100.0) / records.size());
+        long present = records.stream()
+            .filter(item -> (item.getIsDemo() == null || !item.getIsDemo()) && ("PRESENT".equalsIgnoreCase(item.getStatus()) || "LATE".equalsIgnoreCase(item.getStatus())))
+            .count();
+        long total = records.stream()
+            .filter(item -> item.getIsDemo() == null || !item.getIsDemo())
+            .count();
+        if (total == 0) return null;
+        return round((present * 100.0) / total);
     }
 
     private Double classAttendance(int courseId) {

@@ -1,0 +1,58 @@
+{
+  "model_name": "AcademicDeepIntelligenceMLP",
+  "model_version": "v1.2.0-dl-mlp",
+  "framework": "PyTorch 2.x Deep Learning (Multi-Layer Perceptron)",
+  "trained_at": "2026-10-11T14:21:45.357553",
+  "input_features": [
+    "attendance_rate",
+    "internal_assessment_avg",
+    "assignment_completion_rate",
+    "assignment_average_mark",
+    "previous_course_avg",
+    "missing_assignments_count",
+    "consultation_engagement"
+  ],
+  "architecture": {
+    "architecture_name": "Deep Learning Multi-Layer Perceptron (MLP)",
+    "layers": [
+      "Linear(7 -> 64) + BatchNorm1d + ReLU + Dropout(0.2)",
+      "Linear(64 -> 32) + BatchNorm1d + ReLU + Dropout(0.1)",
+      "Linear(32 -> 16) + ReLU",
+      "Linear(16 -> 1) + Sigmoid(scaled x100)"
+    ],
+    "total_parameters": 3329,
+    "trainable_parameters": 3329,
+    "activation_functions": [
+      "ReLU",
+      "Sigmoid"
+    ],
+    "regularization": [
+      "Batch Normalization",
+      "Dropout (0.2, 0.1)"
+    ]
+  },
+  "training_dataset_summary": {
+    "total_samples": 1600,
+    "train_samples": 1280,
+    "test_samples": 320,
+    "source": "Institutional Academic Records & Validated Historical Dataset",
+    "features_count": 7,
+    "target": "final_exam_score (Continuous, 0-100 scale)"
+  },
+  "evaluation_metrics": {
+    "mean_absolute_error_mae": 3.203,
+    "root_mean_squared_error_rmse": 3.94,
+    "r2_score": 0.932,
+    "accuracy_within_5_points_pct": 79.06,
+    "classification_f1_macro": 0.816,
+    "classification_weighted_f1": 0.807
+  },
+  "baseline_comparison": {
+    "baseline_model": "Scikit-Learn Ridge Regression",
+    "baseline_mae": 3.015,
+    "baseline_rmse": 3.745,
+    "baseline_r2": 0.939,
+    "neural_network_improvement_rmse_pct": -5.23
+  },
+  "status": "TRAINED_AND_VERIFIED"
+}

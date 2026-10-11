@@ -90,7 +90,7 @@ public class DemoSecurityConfig extends WebSecurityConfigurerAdapter {
 			.antMatchers("/admin/**", "/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 			.antMatchers("/student/**", "/api/students/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/teacher/**", "/api/teachers/**").hasAnyAuthority("ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
-			.antMatchers("/api/interventions/**", "/api/academic/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
+			.antMatchers("/api/interventions/**", "/api/academic/**", "/api/ai/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/api/courses/**").authenticated()
 			.anyRequest().authenticated()
 			.and()
@@ -110,7 +110,16 @@ public class DemoSecurityConfig extends WebSecurityConfigurerAdapter {
 					new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED),
 					new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/**")
 				)
-				.accessDeniedPage("/access-denied");
+				.accessDeniedHandler((request, response, accessDeniedException) -> {
+					if (request.getRequestURI().startsWith("/api/")) {
+						response.setStatus(javax.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+						response.setContentType("application/json");
+						response.setCharacterEncoding("UTF-8");
+						response.getWriter().write("{\"error\":\"Access Denied\",\"status\":403}");
+					} else {
+						response.sendRedirect(request.getContextPath() + "/access-denied");
+					}
+				});
 	}
 	
 	@Bean

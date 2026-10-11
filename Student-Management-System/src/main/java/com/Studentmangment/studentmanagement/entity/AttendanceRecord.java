@@ -36,6 +36,24 @@ public class AttendanceRecord {
     @Column(name = "recorded_by_teacher_id")
     private Integer recordedByTeacherId;
 
+    @Column(name = "is_demo")
+    private Boolean isDemo = false;
+
+    @Column(name = "demo_student_name", length = 120)
+    private String demoStudentName;
+
+    @Column(name = "demo_course_name", length = 150)
+    private String demoCourseName;
+
+    @Column(name = "class_section", length = 50)
+    private String classSection;
+
+    @Column(name = "session_period", length = 50)
+    private String sessionPeriod;
+
+    @Column(name = "remarks", length = 255)
+    private String remarks;
+
     @Column(name = "seed_key", length = 160)
     private String seedKey;
 
@@ -87,11 +105,59 @@ public class AttendanceRecord {
         this.recordedByTeacherId = recordedByTeacherId;
     }
 
+    public Boolean getIsDemo() {
+        return isDemo;
+    }
+
+    public void setIsDemo(Boolean isDemo) {
+        this.isDemo = isDemo;
+    }
+
+    public String getDemoStudentName() {
+        return demoStudentName;
+    }
+
+    public void setDemoStudentName(String demoStudentName) {
+        this.demoStudentName = demoStudentName;
+    }
+
+    public String getDemoCourseName() {
+        return demoCourseName;
+    }
+
+    public void setDemoCourseName(String demoCourseName) {
+        this.demoCourseName = demoCourseName;
+    }
+
     public String getSeedKey() {
         return seedKey;
     }
 
     public void setSeedKey(String seedKey) {
         this.seedKey = seedKey;
+    }
+
+    public String getClassSection() {
+        return classSection;
+    }
+
+    public void setClassSection(String classSection) {
+        this.classSection = classSection;
+    }
+
+    public String getSessionPeriod() {
+        return sessionPeriod;
+    }
+
+    public void setSessionPeriod(String sessionPeriod) {
+        this.sessionPeriod = sessionPeriod;
+    }
+
+    public String getRemarks() {
+        return remarks;
+    }
+
+    public void setRemarks(String remarks) {
+        this.remarks = remarks;
     }
 }

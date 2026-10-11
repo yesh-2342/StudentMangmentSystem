@@ -64,6 +64,11 @@ export const teacherService = {
       return [];
     }
   },
+
+  updateProfile: async (teacherId, profileData) => {
+    const response = await api.put(`/api/teachers/${teacherId}/profile`, profileData);
+    return response.data;
+  },
 };
 
 export default teacherService;

@@ -101,6 +101,38 @@ export const academicService = {
     const response = await api.post('/api/academic/simulator', payload);
     return response.data;
   },
+
+  // Deep Learning Academic Intelligence Endpoints
+  getAiHealth: async () => {
+    const response = await api.get('/api/ai/health');
+    return response.data;
+  },
+
+  getAiModelInfo: async () => {
+    const response = await api.get('/api/ai/model-info');
+    return response.data;
+  },
+
+  getStudentAiPrediction: async (studentId, courseId = null) => {
+    const params = courseId ? `?courseId=${courseId}` : '';
+    const response = await api.get(`/api/ai/students/${studentId}/prediction${params}`);
+    return response.data;
+  },
+
+  simulateAiScenario: async (studentId, payload) => {
+    const response = await api.post(`/api/ai/students/${studentId}/simulate`, payload);
+    return response.data;
+  },
+
+  getCourseAiPredictions: async (courseId) => {
+    const response = await api.get(`/api/ai/courses/${courseId}/predictions`);
+    return response.data;
+  },
+
+  getInstitutionalAiAnalytics: async () => {
+    const response = await api.get('/api/ai/analytics/institutional');
+    return response.data;
+  },
 };
 
 export default academicService;

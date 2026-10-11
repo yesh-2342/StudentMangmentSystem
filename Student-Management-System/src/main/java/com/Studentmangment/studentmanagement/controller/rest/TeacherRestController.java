@@ -676,6 +676,37 @@ public class TeacherRestController {
         }
     }
 
+    @PutMapping("/{teacherId}/profile")
+    public ResponseEntity<?> updateTeacherProfile(
+            @PathVariable("teacherId") int teacherId,
+            @RequestBody Map<String, Object> payload) {
+        if (!canAccessTeacher(teacherId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Access denied for this faculty record"));
+        }
+        Teacher teacher = teacherService.findByTeacherId(teacherId);
+        if (teacher == null) return ResponseEntity.notFound().build();
+
+        String firstName = (String) payload.get("firstName");
+        String lastName = (String) payload.get("lastName");
+        String email = (String) payload.get("email");
+
+        if (firstName != null && !firstName.trim().isEmpty()) teacher.setFirstName(firstName.trim());
+        if (lastName != null && !lastName.trim().isEmpty()) teacher.setLastName(lastName.trim());
+        if (email != null && !email.trim().isEmpty()) teacher.setEmail(email.trim());
+
+        teacherService.save(teacher);
+
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("id", teacher.getId());
+        resp.put("userName", teacher.getUserName());
+        resp.put("firstName", teacher.getFirstName());
+        resp.put("lastName", teacher.getLastName());
+        resp.put("email", teacher.getEmail());
+        resp.put("message", "Faculty profile updated successfully");
+
+        return ResponseEntity.ok(resp);
+    }
+
     private boolean canAccessTeacher(int teacherId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) return false;

@@ -14,6 +14,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -443,6 +445,39 @@ public class StudentRestController {
         profile.put("email", student.getEmail());
         profile.put("courseCount", student.getCourses() != null ? student.getCourses().size() : 0);
         profile.put("role", "STUDENT");
+
+        return ResponseEntity.ok(profile);
+    }
+
+    @PutMapping("/{studentId}/profile")
+    public ResponseEntity<?> updateStudentProfile(
+            @PathVariable("studentId") int studentId,
+            @RequestBody java.util.Map<String, Object> payload) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("error", "Access denied for this student record"));
+        }
+        Student student = studentService.findByStudentId(studentId);
+        if (student == null) return ResponseEntity.notFound().build();
+
+        String firstName = (String) payload.get("firstName");
+        String lastName = (String) payload.get("lastName");
+        String email = (String) payload.get("email");
+
+        if (firstName != null && !firstName.trim().isEmpty()) student.setFirstName(firstName.trim());
+        if (lastName != null && !lastName.trim().isEmpty()) student.setLastName(lastName.trim());
+        if (email != null && !email.trim().isEmpty()) student.setEmail(email.trim());
+
+        studentService.save(student);
+
+        java.util.Map<String, Object> profile = new java.util.HashMap<>();
+        profile.put("id", student.getId());
+        profile.put("userName", student.getUserName());
+        profile.put("firstName", student.getFirstName());
+        profile.put("lastName", student.getLastName());
+        profile.put("email", student.getEmail());
+        profile.put("courseCount", student.getCourses() != null ? student.getCourses().size() : 0);
+        profile.put("role", "STUDENT");
+        profile.put("message", "Profile updated successfully");
 
         return ResponseEntity.ok(profile);
     }

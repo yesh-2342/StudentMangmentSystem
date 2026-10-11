@@ -35,6 +35,9 @@ public class FacultyAvailability {
     @Column(name = "notes", length = 500)
     private String notes;
 
+    @Column(name = "status", length = 30)
+    private String status = "AVAILABLE";
+
     @Column(name = "seed_key", length = 120)
     private String seedKey;
 
@@ -92,6 +95,14 @@ public class FacultyAvailability {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getSeedKey() {

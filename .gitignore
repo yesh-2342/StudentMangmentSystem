@@ -1,0 +1,11 @@
+
+# Python virtual environment
+ai-service/venv/
+**/__pycache__/
+*.py[cod]
+
+# Local cookies and secrets
+cookie.txt
+.env
+.env.*
+!.env.example

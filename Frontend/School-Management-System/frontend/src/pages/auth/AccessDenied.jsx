@@ -1,11 +1,12 @@
 import React from 'react';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { useAuth } from '../../hooks/useAuth';
 
 const AccessDenied = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const role = user?.role?.replace('ROLE_', '').toUpperCase();
   const returnPath = role === 'ADMIN' ? '/admin/dashboard' : role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
 
@@ -24,11 +25,9 @@ const AccessDenied = () => {
         <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '-1rem', marginBottom: '1.25rem' }}>
           Current signed-in role: <strong>{role || 'Not detected'}</strong>
         </p>
-        <Link to={returnPath}>
-          <Button variant="primary" style={{ width: '100%' }}>
-            <ArrowLeft size={16} /> Return to Your Dashboard
-          </Button>
-        </Link>
+        <Button variant="primary" style={{ width: '100%' }} onClick={() => navigate(returnPath)}>
+          <ArrowLeft size={16} /> Return to Your Dashboard
+        </Button>
       </div>
     </div>
   );

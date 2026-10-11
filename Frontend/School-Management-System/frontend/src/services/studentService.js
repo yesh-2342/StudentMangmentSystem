@@ -40,6 +40,11 @@ export const studentService = {
     const response = await api.get(`/api/students/${studentId}/profile`);
     return response.data;
   },
+
+  updateProfile: async (studentId, profileData) => {
+    const response = await api.put(`/api/students/${studentId}/profile`, profileData);
+    return response.data;
+  },
 };
 
 export default studentService;

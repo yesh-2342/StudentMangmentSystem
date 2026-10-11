@@ -9,9 +9,9 @@ const roles = [
     badge: 'Student Portal',
     description: 'Access academic progress, grades, attendance, assessments, and learning resources.',
     icon: GraduationCap,
-    accentColor: '#1d546c',
-    bgGradient: 'linear-gradient(135deg, rgba(29, 84, 108, 0.08) 0%, rgba(29, 84, 108, 0.02) 100%)',
-    borderColor: 'rgba(29, 84, 108, 0.25)',
+    accentColor: '#111111',
+    bgGradient: '#f7f7f7',
+    borderColor: '#e5e5e5',
     buttonText: 'Continue as Student',
     path: '/login/student',
   },
@@ -21,9 +21,9 @@ const roles = [
     badge: 'Faculty Portal',
     description: 'Manage assigned classes, academic performance, assessments, attendance, and consultations.',
     icon: Users,
-    accentColor: '#0f766e',
-    bgGradient: 'linear-gradient(135deg, rgba(15, 118, 110, 0.08) 0%, rgba(15, 118, 110, 0.02) 100%)',
-    borderColor: 'rgba(15, 118, 110, 0.25)',
+    accentColor: '#111111',
+    bgGradient: '#f7f7f7',
+    borderColor: '#e5e5e5',
     buttonText: 'Continue as Teacher',
     path: '/login/teacher',
   },
@@ -33,9 +33,9 @@ const roles = [
     badge: 'Institutional Admin',
     description: 'Access institutional administration, academic oversight, governance, and reports.',
     icon: Shield,
-    accentColor: '#4338ca',
-    bgGradient: 'linear-gradient(135deg, rgba(67, 56, 202, 0.08) 0%, rgba(67, 56, 202, 0.02) 100%)',
-    borderColor: 'rgba(67, 56, 202, 0.25)',
+    accentColor: '#111111',
+    bgGradient: '#f7f7f7',
+    borderColor: '#e5e5e5',
     buttonText: 'Continue as Admin',
     path: '/login/admin',
   },
@@ -48,7 +48,7 @@ const LoginSelect = () => {
     <div className="auth-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', background: 'var(--primary)', color: '#ffffff', marginBottom: '1rem', boxShadow: '0 8px 16px rgba(29, 84, 108, 0.2)' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '14px', background: '#111111', color: '#ffffff', marginBottom: '1rem', border: '1px solid #000000', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
             <GraduationCap size={32} />
           </div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>
