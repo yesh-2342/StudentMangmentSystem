@@ -40,6 +40,30 @@ export const teacherService = {
     const response = await api.get(`/api/teachers/${teacherId}/students`);
     return response.data;
   },
+
+  getStudentDetails: async (teacherId, studentId) => {
+    const response = await api.get(`/api/teachers/${teacherId}/students/${studentId}`);
+    return response.data;
+  },
+
+  updateStudent: async (teacherId, studentId, studentData) => {
+    const response = await api.put(`/api/teachers/${teacherId}/students/${studentId}`, studentData);
+    return response.data;
+  },
+
+  getAtRiskStudents: async (teacherId) => {
+    const response = await api.get(`/api/teachers/${teacherId}/at-risk`);
+    return response.data;
+  },
+
+  getAllTeachers: async () => {
+    try {
+      const response = await api.get('/api/admin/teachers');
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
 };
 
 export default teacherService;

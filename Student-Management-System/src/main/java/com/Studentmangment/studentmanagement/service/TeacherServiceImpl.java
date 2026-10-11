@@ -45,7 +45,14 @@ public class TeacherServiceImpl implements TeacherService {
 		teacher.setFirstName(userDto.getFirstName());
 		teacher.setLastName(userDto.getLastName());
 		teacher.setEmail(userDto.getEmail());		
-		teacher.setRole(userDto.getRole());	
+		Role teacherRole = roleDao.findRoleByName("TEACHER");
+		if (teacherRole == null) {
+			teacherRole = roleDao.findRoleByName("ROLE_TEACHER");
+		}
+		if (teacherRole == null && userDto.getRole() != null) {
+			teacherRole = userDto.getRole();
+		}
+		teacher.setRole(teacherRole);	
 		
 		teacherDao.save(teacher);
 	}

@@ -29,6 +29,7 @@ import com.Studentmangment.studentmanagement.entity.Teacher;
 import com.Studentmangment.studentmanagement.service.StudentService;
 import com.Studentmangment.studentmanagement.service.TeacherService;
 import com.Studentmangment.studentmanagement.user.UserDto;
+import com.Studentmangment.studentmanagement.util.SecurityRoles;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -65,6 +66,15 @@ public class AuthRestController {
             boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ADMIN"));
 
+            String actualRole = isAdmin ? "ADMIN" : (isTeacher ? "TEACHER" : (isStudent ? "STUDENT" : null));
+            if (actualRole == null || !SecurityRoles.matchesExpected(loginRequest.getExpectedRole(), actualRole)) {
+                session.invalidate();
+                SecurityContextHolder.clearContext();
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new AuthResponseDto(
+                    0, "", "", "", "", "", "These credentials do not match the selected " + SecurityRoles.normalize(loginRequest.getExpectedRole()) + " login. Sign in with the portal that matches your account role."
+                ));
+            }
+
             if (isStudent) {
                 Student student = studentService.findByStudentName(username);
                 if (student != null) {
@@ -83,7 +93,7 @@ public class AuthRestController {
                 }
             } else if (isAdmin) {
                 return ResponseEntity.ok(new AuthResponseDto(
-                    0, "admin", "System", "Admin", "admin@erp.edu", "ADMIN", "Login successful"
+                    0, username, "System", "Admin", "admin@erp.edu", "ADMIN", "Login successful"
                 ));
             }
 
@@ -116,23 +126,23 @@ public class AuthRestController {
             Student student = studentService.findByStudentName(username);
             if (student != null) {
                 return ResponseEntity.ok(new AuthResponseDto(
-                    student.getId(), student.getUserName(), student.getFirstName(), student.getLastName(), student.getEmail(), "STUDENT"
+                    student.getId(), student.getUserName(), student.getFirstName(), student.getLastName(), student.getEmail(), "STUDENT", "Active session"
                 ));
             }
         } else if (isTeacher) {
             Teacher teacher = teacherService.findByTeacherName(username);
             if (teacher != null) {
                 return ResponseEntity.ok(new AuthResponseDto(
-                    teacher.getId(), teacher.getUserName(), teacher.getFirstName(), teacher.getLastName(), teacher.getEmail(), "TEACHER"
+                    teacher.getId(), teacher.getUserName(), teacher.getFirstName(), teacher.getLastName(), teacher.getEmail(), "TEACHER", "Active session"
                 ));
             }
         } else if (isAdmin) {
             return ResponseEntity.ok(new AuthResponseDto(
-                0, "admin", "System", "Admin", "admin@erp.edu", "ADMIN"
+                0, username, "System", "Admin", "admin@erp.edu", "ADMIN", "Active session"
             ));
         }
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Session expired or user not found");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponseDto(0, "", "", "", "", "", "Session expired or user not found"));
     }
 
     @PostMapping("/logout")
@@ -159,6 +169,12 @@ public class AuthRestController {
                 return ResponseEntity.badRequest().body("{\"error\": \"Username already exists!\"}");
             }
             Role role = roleDao.findRoleByName("ROLE_STUDENT");
+            if (role == null) {
+                role = roleDao.findRoleByName("STUDENT");
+            }
+            if (role == null) {
+                role = new Role("ROLE_STUDENT");
+            }
             UserDto userDto = new UserDto();
             userDto.setUserName(dto.getUserName());
             userDto.setPassword(dto.getPassword());
@@ -172,6 +188,12 @@ public class AuthRestController {
                 return ResponseEntity.badRequest().body("{\"error\": \"Username already exists!\"}");
             }
             Role role = roleDao.findRoleByName("ROLE_TEACHER");
+            if (role == null) {
+                role = roleDao.findRoleByName("TEACHER");
+            }
+            if (role == null) {
+                role = new Role("ROLE_TEACHER");
+            }
             UserDto userDto = new UserDto();
             userDto.setUserName(dto.getUserName());
             userDto.setPassword(dto.getPassword());

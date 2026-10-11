@@ -23,57 +23,52 @@ public class AssignmentDetails {
 	private int studentCourseDetailsId;
 	
 	@Column(name="is_done")
-	private int isDone; 
+	private Integer isDone; 
 	
 	public AssignmentDetails() {
 		
 	}
 	
-	
-	public AssignmentDetails(int id, int assignmentId, int studentCourseDetailsId, int isDone) {
+	public AssignmentDetails(int id, int assignmentId, int studentCourseDetailsId, Integer isDone) {
 		this.id = id;
 		this.assignmentId = assignmentId;
 		this.studentCourseDetailsId = studentCourseDetailsId;
 		this.isDone = isDone;
 	}
 
-
 	public int getId() {
 		return id;
 	}
-
 
 	public void setId(int id) {
 		this.id = id;
 	}
 
-
 	public int getAssignmentId() {
 		return assignmentId;
 	}
-
 
 	public void setAssignmentId(int assignmentId) {
 		this.assignmentId = assignmentId;
 	}
 
-
 	public int getStudentCourseDetailsId() {
 		return studentCourseDetailsId;
 	}
-
 
 	public void setStudentCourseDetailsId(int studentCourseDetailsId) {
 		this.studentCourseDetailsId = studentCourseDetailsId;
 	}
 
-
 	public int getIsDone() {
-		return isDone;
+		return isDone == null ? 0 : isDone;
 	}
 
-
 	public void setIsDone(int isDone) {
+		this.isDone = isDone;
+	}
+
+	public void setIsDone(Integer isDone) {
 		this.isDone = isDone;
 	}
 	

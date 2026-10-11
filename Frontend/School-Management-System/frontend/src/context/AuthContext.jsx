@@ -34,8 +34,8 @@ export const AuthProvider = ({ children }) => {
     verifyAuth();
   }, []);
 
-  const login = async (username, password) => {
-    const userData = await authService.login(username, password);
+  const login = async (username, password, expectedRole = null) => {
+    const userData = await authService.login(username, password, expectedRole);
     setUser(userData);
     localStorage.setItem('sms_user', JSON.stringify(userData));
     return userData;

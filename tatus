@@ -1,0 +1,28 @@
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/components/layout/Navbar.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/components/layout/Sidebar.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/context/AuthContext.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/index.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/layouts/AdminLayout.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/layouts/StudentLayout.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/layouts/TeacherLayout.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/admin/AdminDashboard.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/admin/Courses.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/admin/Students.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/admin/Teachers.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/auth/AccessDenied.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/teacher/TeacherDashboard.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/pages/teacher/TeacherStudents.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/routes/AppRoutes.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/services/adminService.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/services/authService.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Frontend/School-Management-System/frontend/src/services/teacherService.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/controller/rest/AdminRestController.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/controller/rest/AuthRestController.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/controller/rest/StudentRestController.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/controller/rest/TeacherRestController.java', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/dto/LoginRequestDto.java', LF will be replaced by CRLF the next time Git touches it
+Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/entity/AssignmentDetails.java:26: trailing whitespace.
+[32m+[m	[32mprivate Integer isDone;[m[41m [m
+Student-Management-System/src/main/java/com/Studentmangment/studentmanagement/service/TeacherServiceImpl.java:55: trailing whitespace.
+[32m+[m		[32mteacher.setRole(teacherRole);[m[41m	[m

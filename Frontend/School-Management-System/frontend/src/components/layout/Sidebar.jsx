@@ -48,11 +48,11 @@ const Sidebar = ({ navItems, title = 'Academic ERP', roleLabel = 'Portal', isOpe
 
         <div className="sidebar-footer">
           <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
               {user ? `${user.firstName || ''} ${user.lastName || user.username}` : 'User'}
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {user?.role}
+            <span style={{ fontSize: '0.75rem', color: '#b9cbd3' }}>
+              {user?.role?.replace('ROLE_', '')}
             </span>
           </div>
           <button className="btn-icon" onClick={logout} title="Logout" aria-label="Logout">

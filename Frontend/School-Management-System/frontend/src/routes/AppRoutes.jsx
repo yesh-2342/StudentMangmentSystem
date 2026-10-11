@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
 import { useAuth } from '../hooks/useAuth';
@@ -10,7 +10,8 @@ import TeacherLayout from '../layouts/TeacherLayout';
 import AdminLayout from '../layouts/AdminLayout';
 
 // Auth Pages
-import Login from '../pages/auth/Login';
+import LoginSelect from '../pages/auth/LoginSelect';
+import RoleLoginForm from '../pages/auth/RoleLoginForm';
 import Register from '../pages/auth/Register';
 import AccessDenied from '../pages/auth/AccessDenied';
 
@@ -30,6 +31,7 @@ import TeacherCourseDetails from '../pages/teacher/TeacherCourseDetails';
 import TeacherStudents from '../pages/teacher/TeacherStudents';
 import TeacherAssignments from '../pages/teacher/TeacherAssignments';
 import TeacherGrades from '../pages/teacher/TeacherGrades';
+import TeacherProfile from '../pages/teacher/TeacherProfile';
 
 // Admin Pages
 import AdminDashboard from '../pages/admin/AdminDashboard';
@@ -37,6 +39,9 @@ import Students from '../pages/admin/Students';
 import Teachers from '../pages/admin/Teachers';
 import Courses from '../pages/admin/Courses';
 import AdminProfile from '../pages/admin/AdminProfile';
+
+// Common Module Page
+import AcademicModulePage from '../pages/common/AcademicModulePage';
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
@@ -49,6 +54,14 @@ const RootRedirect = () => {
   return <Navigate to="/student/dashboard" replace />;
 };
 
+const DynamicRoleLogin = () => {
+  const { role } = useParams();
+  if (['student', 'teacher', 'admin'].includes(role?.toLowerCase())) {
+    return <RoleLoginForm roleType={role.toLowerCase()} />;
+  }
+  return <LoginSelect />;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -56,7 +69,11 @@ const AppRoutes = () => {
       <Route path="/" element={<RootRedirect />} />
 
       {/* Public Auth Routes */}
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<LoginSelect />} />
+      <Route path="/login/student" element={<RoleLoginForm roleType="student" />} />
+      <Route path="/login/teacher" element={<RoleLoginForm roleType="teacher" />} />
+      <Route path="/login/admin" element={<RoleLoginForm roleType="admin" />} />
+      <Route path="/login/:role" element={<DynamicRoleLogin />} />
       <Route path="/register" element={<Register />} />
       <Route path="/access-denied" element={<AccessDenied />} />
 
@@ -67,6 +84,20 @@ const AppRoutes = () => {
           <Route path="/student" element={<StudentLayout />}>
             <Route index element={<Navigate to="/student/dashboard" replace />} />
             <Route path="dashboard" element={<StudentDashboard />} />
+            <Route path="ai-insights" element={<AcademicModulePage module="ai" />} />
+            <Route path="academic-progress" element={<AcademicModulePage module="risk" />} />
+            <Route path="at-risk" element={<AcademicModulePage module="risk" />} />
+            <Route path="interventions" element={<AcademicModulePage module="interventions" />} />
+            <Route path="academic-support" element={<AcademicModulePage module="interventions" />} />
+            <Route path="availability" element={<AcademicModulePage module="availability" />} />
+            <Route path="consultations" element={<AcademicModulePage module="consultations" />} />
+            <Route path="library" element={<AcademicModulePage module="library" />} />
+            <Route path="resources" element={<AcademicModulePage module="resources" />} />
+            <Route path="assessments" element={<AcademicModulePage module="assessments" />} />
+            <Route path="attendance" element={<AcademicModulePage module="attendance" />} />
+            <Route path="reports" element={<AcademicModulePage module="reports" />} />
+            <Route path="simulator" element={<AcademicModulePage module="simulator" />} />
+            <Route path="notifications" element={<AcademicModulePage module="notifications" />} />
             <Route path="courses" element={<StudentCourses />} />
             <Route path="courses/:courseId" element={<StudentCourseDetails />} />
             <Route path="assignments" element={<StudentAssignments />} />
@@ -84,8 +115,21 @@ const AppRoutes = () => {
             <Route path="courses" element={<TeacherCourses />} />
             <Route path="courses/:courseId" element={<TeacherCourseDetails />} />
             <Route path="students" element={<TeacherStudents />} />
+            <Route path="ai-insights" element={<AcademicModulePage module="ai" />} />
+            <Route path="at-risk" element={<AcademicModulePage module="risk" />} />
+            <Route path="interventions" element={<AcademicModulePage module="interventions" />} />
+            <Route path="assessments" element={<AcademicModulePage module="assessments" />} />
+            <Route path="attendance" element={<AcademicModulePage module="attendance" />} />
+            <Route path="consultations" element={<AcademicModulePage module="consultations" />} />
+            <Route path="availability" element={<AcademicModulePage module="availability" />} />
+            <Route path="resources" element={<AcademicModulePage module="resources" />} />
+            <Route path="library" element={<AcademicModulePage module="library" />} />
+            <Route path="reports" element={<AcademicModulePage module="reports" />} />
+            <Route path="simulator" element={<AcademicModulePage module="simulator" />} />
+            <Route path="notifications" element={<AcademicModulePage module="notifications" />} />
             <Route path="assignments" element={<TeacherAssignments />} />
             <Route path="grades" element={<TeacherGrades />} />
+            <Route path="profile" element={<TeacherProfile />} />
           </Route>
         </Route>
 
@@ -94,9 +138,24 @@ const AppRoutes = () => {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<Students />} />
             <Route path="students" element={<Students />} />
             <Route path="teachers" element={<Teachers />} />
             <Route path="courses" element={<Courses />} />
+            <Route path="academic-data" element={<AcademicModulePage module="academic-data" />} />
+            <Route path="ai-insights" element={<AcademicModulePage module="ai" />} />
+            <Route path="at-risk" element={<AcademicModulePage module="risk" />} />
+            <Route path="interventions" element={<AcademicModulePage module="interventions" />} />
+            <Route path="attendance" element={<AcademicModulePage module="attendance" />} />
+            <Route path="assessments" element={<AcademicModulePage module="assessments" />} />
+            <Route path="library" element={<AcademicModulePage module="library" />} />
+            <Route path="resources" element={<AcademicModulePage module="resources" />} />
+            <Route path="availability" element={<AcademicModulePage module="availability" />} />
+            <Route path="consultations" element={<AcademicModulePage module="consultations" />} />
+            <Route path="reports" element={<AcademicModulePage module="reports" />} />
+            <Route path="simulator" element={<AcademicModulePage module="simulator" />} />
+            <Route path="notifications" element={<AcademicModulePage module="notifications" />} />
+            <Route path="settings" element={<AcademicModulePage module="settings" />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>
         </Route>

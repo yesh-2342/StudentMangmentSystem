@@ -7,7 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,6 +50,9 @@ public class StudentRestController {
 
     @GetMapping("/{studentId}/dashboard")
     public ResponseEntity<?> getStudentDashboard(@PathVariable("studentId") int studentId) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         Student student = studentService.findByStudentId(studentId);
         if (student == null) {
             return ResponseEntity.notFound().build();
@@ -156,6 +162,9 @@ public class StudentRestController {
 
     @GetMapping("/{studentId}/courses")
     public ResponseEntity<?> getStudentCourses(@PathVariable("studentId") int studentId) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         Student student = studentService.findByStudentId(studentId);
         if (student == null) {
             return ResponseEntity.notFound().build();
@@ -209,6 +218,9 @@ public class StudentRestController {
 
     @GetMapping("/{studentId}/courses/{courseId}")
     public ResponseEntity<?> getStudentCourseDetail(@PathVariable("studentId") int studentId, @PathVariable("courseId") int courseId) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(studentId, courseId);
         if (scd == null) {
             return ResponseEntity.notFound().build();
@@ -270,6 +282,9 @@ public class StudentRestController {
 
     @GetMapping("/{studentId}/assignments")
     public ResponseEntity<?> getAllStudentAssignments(@PathVariable("studentId") int studentId) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         List<StudentCourseDetails> scdList = studentCourseDetailsService.findByStudentId(studentId);
         List<StudentAssignmentDto> result = new ArrayList<>();
 
@@ -307,6 +322,9 @@ public class StudentRestController {
             @PathVariable("courseId") int courseId,
             @PathVariable("assignmentId") int assignmentId) {
 
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(studentId, courseId);
         if (scd == null) return ResponseEntity.notFound().build();
 
@@ -336,6 +354,9 @@ public class StudentRestController {
             @PathVariable("courseId") int courseId,
             @PathVariable("assignmentId") int assignmentId) {
 
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(studentId, courseId);
         if (scd == null) return ResponseEntity.notFound().build();
 
@@ -355,6 +376,9 @@ public class StudentRestController {
 
     @GetMapping("/{studentId}/grades")
     public ResponseEntity<?> getStudentGrades(@PathVariable("studentId") int studentId) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         List<StudentCourseDetails> scdList = studentCourseDetailsService.findByStudentId(studentId);
         List<StudentGradeDto> gradeDtos = new ArrayList<>();
 
@@ -405,6 +429,9 @@ public class StudentRestController {
 
     @GetMapping("/{studentId}/profile")
     public ResponseEntity<?> getStudentProfile(@PathVariable("studentId") int studentId) {
+        if (!canAccessStudent(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("{\"error\": \"Access denied for this student record\"}");
+        }
         Student student = studentService.findByStudentId(studentId);
         if (student == null) return ResponseEntity.notFound().build();
 
@@ -431,5 +458,26 @@ public class StudentRestController {
         } catch (Exception e) {
             return -1;
         }
+    }
+
+    private boolean canAccessStudent(int studentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        if (hasAuthority(authentication, "ROLE_ADMIN") || hasAuthority(authentication, "ADMIN")) {
+            return true;
+        }
+        if (!(hasAuthority(authentication, "ROLE_STUDENT") || hasAuthority(authentication, "STUDENT"))) {
+            return false;
+        }
+
+        Student student = studentService.findByStudentName(authentication.getName());
+        return student != null && student.getId() == studentId;
+    }
+
+    private boolean hasAuthority(Authentication authentication, String authority) {
+        return authentication.getAuthorities().stream()
+            .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(authority));
     }
 }

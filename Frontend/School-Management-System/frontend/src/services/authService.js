@@ -1,8 +1,12 @@
 import api from './api';
 
 export const authService = {
-  login: async (username, password) => {
-    const response = await api.post('/api/auth/login', { username, password });
+  login: async (username, password, expectedRole = null) => {
+    const payload = { username, password };
+    if (expectedRole) {
+      payload.expectedRole = expectedRole;
+    }
+    const response = await api.post('/api/auth/login', payload);
     return response.data;
   },
 

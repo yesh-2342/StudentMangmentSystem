@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Plus, Trash2, Users, UserPlus } from 'lucide-react';
+import { BookOpen, Plus, Edit2, Trash2, Users, UserPlus, Search, AlertCircle, CheckCircle } from 'lucide-react';
 import adminService from '../../services/adminService';
 import PageHeader from '../../components/layout/PageHeader';
 import DataTable from '../../components/common/DataTable';
@@ -17,11 +17,20 @@ const Courses = () => {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Create Course Modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [courseForm, setCourseForm] = useState({ code: '', name: '', teacherId: '' });
   const [creating, setCreating] = useState(false);
+
+  // Edit Course Modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', teacherId: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Manage Course Students Modal
   const [studentsModalOpen, setStudentsModalOpen] = useState(false);
@@ -55,26 +64,65 @@ const Courses = () => {
     fetchCoursesAndTeachers();
   }, []);
 
+  const showSuccess = (msg) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(''), 4000);
+  };
+
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     if (!courseForm.code || !courseForm.name || !courseForm.teacherId) {
-      alert('Please fill out all fields including the assigned instructor.');
+      setActionError('Please fill out all fields including the assigned instructor.');
       return;
     }
     setCreating(true);
+    setActionError('');
     try {
       await adminService.createCourse({
-        code: courseForm.code,
-        name: courseForm.name,
+        code: courseForm.code.trim().toUpperCase(),
+        name: courseForm.name.trim(),
         teacherId: parseInt(courseForm.teacherId, 10),
       });
       setCreateModalOpen(false);
       setCourseForm({ code: '', name: '', teacherId: '' });
+      showSuccess('Course created and instructor assigned successfully.');
       fetchCoursesAndTeachers();
     } catch (err) {
-      alert('Failed to create course.');
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to create course.';
+      setActionError(msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenEdit = (course) => {
+    setEditingCourse(course);
+    setEditForm({
+      name: course.name || '',
+      teacherId: course.teacherId || '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingCourse) return;
+    setSavingEdit(true);
+    setActionError('');
+    try {
+      await adminService.updateCourse(editingCourse.id, {
+        name: editForm.name.trim(),
+        teacherId: parseInt(editForm.teacherId, 10),
+      });
+      setEditModalOpen(false);
+      setEditingCourse(null);
+      showSuccess('Course details and assigned instructor updated successfully.');
+      fetchCoursesAndTeachers();
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to update course.';
+      setActionError(msg);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -99,9 +147,10 @@ const Courses = () => {
       setStudentToAdd('');
       const updated = await adminService.getCourseStudents(selectedCourse.id);
       setCourseStudentsData(updated);
+      showSuccess('Student enrolled into course successfully.');
       fetchCoursesAndTeachers();
     } catch (err) {
-      alert('Failed to enroll student.');
+      setActionError(err.response?.data?.error || 'Failed to enroll student.');
     }
   };
 
@@ -111,25 +160,36 @@ const Courses = () => {
       await adminService.removeStudentFromCourse(selectedCourse.id, studentId);
       const updated = await adminService.getCourseStudents(selectedCourse.id);
       setCourseStudentsData(updated);
+      showSuccess('Student removed from course enrollment.');
       fetchCoursesAndTeachers();
     } catch (err) {
-      alert('Failed to remove student from course.');
+      setActionError(err.response?.data?.error || 'Failed to remove student from course.');
     }
   };
 
   const handleDeleteCourse = async () => {
     if (!deleteConfirm.courseId) return;
     setDeleting(true);
+    setActionError('');
     try {
       await adminService.deleteCourse(deleteConfirm.courseId);
       setDeleteConfirm({ open: false, courseId: null, courseName: '' });
+      showSuccess(`Course ${deleteConfirm.courseName} removed from catalog.`);
       fetchCoursesAndTeachers();
     } catch (err) {
-      alert('Failed to delete course.');
+      setActionError('Failed to delete course.');
     } finally {
       setDeleting(false);
     }
   };
+
+  const filteredCourses = courses.filter((c) => {
+    const query = searchQuery.toLowerCase();
+    const code = (c.code || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
+    const instructor = (c.teacherName || '').toLowerCase();
+    return code.includes(query) || name.includes(query) || instructor.includes(query);
+  });
 
   if (loading) return <LoadingSpinner message="Loading course catalog..." />;
   if (error) return <ErrorState description={error} onRetry={fetchCoursesAndTeachers} />;
@@ -149,6 +209,11 @@ const Courses = () => {
     {
       header: 'Assigned Instructor',
       key: 'teacherName',
+      render: (val) => (
+        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+          {val || 'Unassigned'}
+        </span>
+      ),
     },
     {
       header: 'Enrollment',
@@ -159,9 +224,12 @@ const Courses = () => {
       header: 'Actions',
       key: 'actions',
       render: (_, row) => (
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
           <Button variant="secondary" size="sm" onClick={() => openStudentsManager(row)}>
             <Users size={14} /> Students
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => handleOpenEdit(row)}>
+            <Edit2 size={14} /> Edit
           </Button>
           <button
             className="btn-icon"
@@ -188,9 +256,70 @@ const Courses = () => {
         }
       />
 
+      {successMessage && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: 'var(--success-light)',
+            color: 'var(--success)',
+            padding: '0.85rem 1.25rem',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.9rem',
+            marginBottom: '1.25rem',
+            border: '1px solid #86efac',
+          }}
+        >
+          <CheckCircle size={18} flexShrink={0} />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: 'var(--error-light)',
+            color: 'var(--error)',
+            padding: '0.85rem 1.25rem',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.9rem',
+            marginBottom: '1.25rem',
+            border: '1px solid #fecaca',
+          }}
+        >
+          <AlertCircle size={18} flexShrink={0} />
+          <span>{actionError}</span>
+        </div>
+      )}
+
+      {/* Search Bar */}
+      <div className="card" style={{ marginBottom: '1.25rem', padding: '0.85rem 1.25rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <Search size={18} color="var(--text-muted)" />
+          <input
+            type="text"
+            placeholder="Search courses by code, title, or instructor..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              border: 'none',
+              outline: 'none',
+              width: '100%',
+              fontSize: '0.9rem',
+              background: 'transparent',
+              color: 'var(--text-main)',
+            }}
+          />
+        </div>
+      </div>
+
       <DataTable
         columns={columns}
-        data={courses}
+        data={filteredCourses}
         keyField="id"
         emptyMessage="No courses registered in the catalog."
       />
@@ -214,7 +343,7 @@ const Courses = () => {
         <form onSubmit={handleCreateCourse}>
           <Input
             id="courseCode"
-            label="Course Code"
+            label="Course Code *"
             placeholder="e.g. CS101"
             value={courseForm.code}
             onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
@@ -222,7 +351,7 @@ const Courses = () => {
           />
           <Input
             id="courseName"
-            label="Course Title"
+            label="Course Title *"
             placeholder="e.g. Introduction to Algorithms"
             value={courseForm.name}
             onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
@@ -230,9 +359,48 @@ const Courses = () => {
           />
           <Select
             id="teacherId"
-            label="Assigned Instructor / Professor"
+            label="Assigned Instructor / Professor *"
             value={courseForm.teacherId}
             onChange={(e) => setCourseForm({ ...courseForm, teacherId: e.target.value })}
+            options={teachers.map((t) => ({
+              value: t.id,
+              label: `${t.firstName} ${t.lastName} (@${t.userName})`,
+            }))}
+            placeholder="Choose an instructor..."
+            required
+          />
+        </form>
+      </Modal>
+
+      {/* Modal: Edit Course */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title={`Edit Course: ${editingCourse?.code}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSaveEdit} loading={savingEdit}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveEdit}>
+          <Input
+            id="editCourseName"
+            label="Course Title *"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            required
+          />
+          <Select
+            id="editTeacherId"
+            label="Assigned Instructor / Professor *"
+            value={editForm.teacherId}
+            onChange={(e) => setEditForm({ ...editForm, teacherId: e.target.value })}
             options={teachers.map((t) => ({
               value: t.id,
               label: `${t.firstName} ${t.lastName} (@${t.userName})`,
@@ -288,7 +456,7 @@ const Courses = () => {
             </h4>
 
             {courseStudentsData?.enrolledStudents && courseStudentsData.enrolledStudents.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '280px', overflowY: 'auto' }}>
                 {courseStudentsData.enrolledStudents.map((s) => (
                   <div
                     key={s.id}

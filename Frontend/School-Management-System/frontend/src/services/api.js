@@ -17,6 +17,8 @@ api.interceptors.response.use(
         localStorage.removeItem('sms_user');
         window.location.href = '/login?expired=true';
       }
+    } else if (error.response && error.response.status === 403) {
+      error.userMessage = 'You are not authorized to perform this action.';
     }
     return Promise.reject(error);
   }

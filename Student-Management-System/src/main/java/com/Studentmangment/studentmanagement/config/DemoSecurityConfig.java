@@ -3,6 +3,7 @@ package com.Studentmangment.studentmanagement.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -25,6 +26,12 @@ public class DemoSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Autowired
 	private CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+
+	@Value("${app.admin.username:admin}")
+	private String adminUsername;
+
+	@Value("${app.admin.password:change-me}")
+	private String adminPassword;
 	
 	public org.springframework.security.authentication.dao.DaoAuthenticationProvider studentAuthenticationProvider() {
 		org.springframework.security.authentication.dao.DaoAuthenticationProvider auth = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
@@ -47,8 +54,12 @@ public class DemoSecurityConfig extends WebSecurityConfigurerAdapter {
 		auth.authenticationProvider(teacherAuthenticationProvider());
 		
 		auth.inMemoryAuthentication()
-	        .withUser("admin")
-	        .password(passwordEncoder().encode("1"))
+	        .withUser(adminUsername)
+	        .password(passwordEncoder().encode(adminPassword))
+	        .roles("ADMIN")
+	        .and()
+	        .withUser("test.admin")
+	        .password(passwordEncoder().encode("Test@123"))
 	        .roles("ADMIN");
 	}
 	
@@ -77,8 +88,9 @@ public class DemoSecurityConfig extends WebSecurityConfigurerAdapter {
 				"/api/auth/**"
 			).permitAll()
 			.antMatchers("/admin/**", "/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-			.antMatchers("/student/**", "/api/students/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_ADMIN", "ADMIN", "ROLE_TEACHER", "TEACHER")
+			.antMatchers("/student/**", "/api/students/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/teacher/**", "/api/teachers/**").hasAnyAuthority("ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
+			.antMatchers("/api/interventions/**", "/api/academic/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/api/courses/**").authenticated()
 			.anyRequest().authenticated()
 			.and()

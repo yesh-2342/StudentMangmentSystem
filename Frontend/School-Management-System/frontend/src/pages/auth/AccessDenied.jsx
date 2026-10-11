@@ -21,6 +21,9 @@ const AccessDenied = () => {
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.75rem' }}>
           You do not have the required permissions to view this academic portal section.
         </p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '-1rem', marginBottom: '1.25rem' }}>
+          Current signed-in role: <strong>{role || 'Not detected'}</strong>
+        </p>
         <Link to={returnPath}>
           <Button variant="primary" style={{ width: '100%' }}>
             <ArrowLeft size={16} /> Return to Your Dashboard

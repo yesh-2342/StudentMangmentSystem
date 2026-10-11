@@ -33,7 +33,7 @@ public class StudentCourseDetails {
 	@Column(name="course_id")
 	private int courseId;
 	
-	@ManyToMany(cascade = CascadeType.ALL)
+	@ManyToMany(cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
 	@JoinTable(name="assignment_details",
 				joinColumns = @JoinColumn(name="student_course_details_id"),
 				inverseJoinColumns = @JoinColumn(name="assignment_id"))

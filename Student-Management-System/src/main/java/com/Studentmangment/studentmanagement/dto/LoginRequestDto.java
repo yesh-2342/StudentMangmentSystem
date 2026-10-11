@@ -9,6 +9,8 @@ public class LoginRequestDto {
     @NotBlank(message = "Password is required")
     private String password;
 
+    private String expectedRole;
+
     public LoginRequestDto() {}
 
     public LoginRequestDto(String username, String password) {
@@ -30,5 +32,13 @@ public class LoginRequestDto {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getExpectedRole() {
+        return expectedRole;
+    }
+
+    public void setExpectedRole(String expectedRole) {
+        this.expectedRole = expectedRole;
     }
 }

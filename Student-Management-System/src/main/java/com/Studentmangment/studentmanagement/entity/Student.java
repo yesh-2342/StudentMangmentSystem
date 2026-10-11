@@ -47,7 +47,7 @@ public class Student {
 	private Role role;
 		
 	
-	@ManyToMany(fetch=FetchType.EAGER, cascade = CascadeType.ALL)
+	@ManyToMany(fetch=FetchType.EAGER, cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
 	@JoinTable(name="student_course_details",
 				joinColumns = @JoinColumn(name="student_id"),
 				inverseJoinColumns = @JoinColumn(name="course_id"))			
