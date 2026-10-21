@@ -1,8 +1,19 @@
 import React from 'react';
 
-const StatCard = ({ icon: Icon, color = 'blue', value, label, subtext }) => {
+const StatCard = ({ icon: Icon, color = 'blue', value, label, subtext, onClick, style, className = '' }) => {
   return (
-    <div className="stat-card">
+    <div
+      className={`stat-card ${onClick ? 'card-hover' : ''} ${className}`}
+      onClick={onClick}
+      style={{
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.15s ease',
+        ...style,
+      }}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ' ? onClick(e) : null) : undefined}
+    >
       {Icon && (
         <div className={`stat-icon-box ${color}`}>
           <Icon size={24} />

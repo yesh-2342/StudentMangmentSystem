@@ -38,11 +38,8 @@ public class StudentCourseDetailsDaoImpl implements StudentCourseDetailsDao {
 		query.setParameter("studentId", studentId);
 		query.setParameter("courseId", courseId);
 		
-		try {
-			return query.getSingleResult();
-		} catch (Exception exc) {
-			return null;
-		}
+		List<StudentCourseDetails> list = query.getResultList();
+		return list.isEmpty() ? null : list.get(0);
 	}
 
 	@Override

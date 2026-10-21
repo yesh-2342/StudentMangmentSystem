@@ -7,4 +7,6 @@ public interface AssignmentDao {
 	public void save(Assignment assignment);
 	
 	public void deleteAssignmentById(int id);
+
+	public Assignment findById(int id);
 }

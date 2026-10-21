@@ -39,9 +39,11 @@ import Students from '../pages/admin/Students';
 import Teachers from '../pages/admin/Teachers';
 import Courses from '../pages/admin/Courses';
 import AdminProfile from '../pages/admin/AdminProfile';
+import ParentVoiceAlerts from '../pages/admin/ParentVoiceAlerts';
 
 // Common Module Page
 import AcademicModulePage from '../pages/common/AcademicModulePage';
+import AcademicAssistantPage from '../pages/common/AcademicAssistantPage';
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
@@ -95,6 +97,10 @@ const AppRoutes = () => {
             <Route path="resources" element={<AcademicModulePage module="resources" />} />
             <Route path="assessments" element={<AcademicModulePage module="assessments" />} />
             <Route path="attendance" element={<AcademicModulePage module="attendance" />} />
+            <Route path="recovery" element={<AcademicModulePage module="recovery" />} />
+            <Route path="todos" element={<AcademicModulePage module="todos" />} />
+            <Route path="study-plan" element={<AcademicModulePage module="study-plan" />} />
+            <Route path="doubts" element={<AcademicModulePage module="doubts" />} />
             <Route path="reports" element={<AcademicModulePage module="reports" />} />
             <Route path="simulator" element={<AcademicModulePage module="simulator" />} />
             <Route path="notifications" element={<AcademicModulePage module="notifications" />} />
@@ -103,6 +109,8 @@ const AppRoutes = () => {
             <Route path="assignments" element={<StudentAssignments />} />
             <Route path="courses/:courseId/assignment/:assignmentId" element={<StudentAssignmentDetails />} />
             <Route path="grades" element={<StudentGrades />} />
+            <Route path="assistant" element={<AcademicAssistantPage />} />
+            <Route path="academic-assistant" element={<AcademicAssistantPage />} />
             <Route path="profile" element={<StudentProfile />} />
           </Route>
         </Route>
@@ -115,11 +123,16 @@ const AppRoutes = () => {
             <Route path="courses" element={<TeacherCourses />} />
             <Route path="courses/:courseId" element={<TeacherCourseDetails />} />
             <Route path="students" element={<TeacherStudents />} />
+            <Route path="class-health" element={<AcademicModulePage module="class-health" />} />
+            <Route path="bulk-marks" element={<AcademicModulePage module="bulk-marks" />} />
+            <Route path="submissions" element={<AcademicModulePage module="submissions" />} />
+            <Route path="doubts" element={<AcademicModulePage module="doubts" />} />
             <Route path="ai-insights" element={<AcademicModulePage module="ai" />} />
             <Route path="at-risk" element={<AcademicModulePage module="risk" />} />
             <Route path="interventions" element={<AcademicModulePage module="interventions" />} />
             <Route path="assessments" element={<AcademicModulePage module="assessments" />} />
             <Route path="attendance" element={<AcademicModulePage module="attendance" />} />
+            <Route path="recovery" element={<AcademicModulePage module="recovery" />} />
             <Route path="consultations" element={<AcademicModulePage module="consultations" />} />
             <Route path="availability" element={<AcademicModulePage module="availability" />} />
             <Route path="resources" element={<AcademicModulePage module="resources" />} />
@@ -129,6 +142,10 @@ const AppRoutes = () => {
             <Route path="notifications" element={<AcademicModulePage module="notifications" />} />
             <Route path="assignments" element={<TeacherAssignments />} />
             <Route path="grades" element={<TeacherGrades />} />
+            <Route path="assistant" element={<AcademicAssistantPage />} />
+            <Route path="academic-assistant" element={<AcademicAssistantPage />} />
+            <Route path="parent-alerts" element={<ParentVoiceAlerts />} />
+            <Route path="parent-calling" element={<Navigate to="/teacher/assistant" replace />} />
             <Route path="profile" element={<TeacherProfile />} />
           </Route>
         </Route>
@@ -142,6 +159,13 @@ const AppRoutes = () => {
             <Route path="students" element={<Students />} />
             <Route path="teachers" element={<Teachers />} />
             <Route path="courses" element={<Courses />} />
+            <Route path="class-health" element={<AcademicModulePage module="class-health" />} />
+            <Route path="bulk-marks" element={<AcademicModulePage module="bulk-marks" />} />
+            <Route path="submissions" element={<AcademicModulePage module="submissions" />} />
+            <Route path="doubts" element={<AcademicModulePage module="doubts" />} />
+            <Route path="todos" element={<AcademicModulePage module="todos" />} />
+            <Route path="recovery" element={<AcademicModulePage module="recovery" />} />
+            <Route path="study-plan" element={<AcademicModulePage module="study-plan" />} />
             <Route path="academic-data" element={<AcademicModulePage module="academic-data" />} />
             <Route path="ai-insights" element={<AcademicModulePage module="ai" />} />
             <Route path="at-risk" element={<AcademicModulePage module="risk" />} />
@@ -155,6 +179,10 @@ const AppRoutes = () => {
             <Route path="reports" element={<AcademicModulePage module="reports" />} />
             <Route path="simulator" element={<AcademicModulePage module="simulator" />} />
             <Route path="notifications" element={<AcademicModulePage module="notifications" />} />
+            <Route path="assistant" element={<AcademicAssistantPage />} />
+            <Route path="academic-assistant" element={<AcademicAssistantPage />} />
+            <Route path="parent-alerts" element={<ParentVoiceAlerts />} />
+            <Route path="parent-calling" element={<Navigate to="/admin/assistant" replace />} />
             <Route path="settings" element={<AcademicModulePage module="settings" />} />
             <Route path="profile" element={<AdminProfile />} />
           </Route>

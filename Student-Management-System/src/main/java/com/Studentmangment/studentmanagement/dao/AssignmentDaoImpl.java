@@ -31,4 +31,10 @@ public class AssignmentDaoImpl implements AssignmentDao {
 		query.executeUpdate();
 	}
 
+	@Override
+	public Assignment findById(int id) {
+		Session session = entityManager.unwrap(Session.class);
+		return session.get(Assignment.class, id);
+	}
+
 }

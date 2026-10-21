@@ -24,4 +24,10 @@ public class AssignmentServiceImpl implements AssignmentService {
     public void deleteAssignmentById(int id) {
         assignmentDao.deleteAssignmentById(id);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Assignment findAssignmentById(int id) {
+        return assignmentDao.findById(id);
+    }
 }

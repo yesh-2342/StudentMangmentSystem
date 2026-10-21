@@ -179,6 +179,7 @@ const RoleLoginForm = ({ roleType }) => {
               <input
                 id="username"
                 type="text"
+                className="form-input"
                 placeholder={meta.placeholderUser}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -186,13 +187,11 @@ const RoleLoginForm = ({ roleType }) => {
                 autoComplete="username"
                 style={{
                   width: '100%',
-                  padding: '0.7rem 0.85rem 0.7rem 2.4rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  background: 'var(--card-bg, #ffffff)',
-                  color: 'var(--text-main)',
+                  padding: '0.75rem 0.85rem 0.75rem 2.4rem',
+                  fontSize: '0.92rem',
+                  fontWeight: 500,
+                  color: '#0f172a',
+                  backgroundColor: '#ffffff',
                 }}
               />
             </div>
@@ -212,6 +211,7 @@ const RoleLoginForm = ({ roleType }) => {
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
+                className="form-input"
                 placeholder="Enter your account password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -219,13 +219,11 @@ const RoleLoginForm = ({ roleType }) => {
                 autoComplete="current-password"
                 style={{
                   width: '100%',
-                  padding: '0.7rem 2.5rem 0.7rem 2.4rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  background: 'var(--card-bg, #ffffff)',
-                  color: 'var(--text-main)',
+                  padding: '0.75rem 2.5rem 0.75rem 2.4rem',
+                  fontSize: '0.92rem',
+                  fontWeight: 500,
+                  color: '#0f172a',
+                  backgroundColor: '#ffffff',
                 }}
               />
               <button

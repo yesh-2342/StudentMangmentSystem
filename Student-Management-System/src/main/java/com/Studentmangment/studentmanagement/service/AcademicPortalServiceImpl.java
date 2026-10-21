@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -21,7 +22,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.Studentmangment.studentmanagement.entity.AcademicDoubt;
 import com.Studentmangment.studentmanagement.entity.AcademicNotification;
+import com.Studentmangment.studentmanagement.entity.AcademicTodo;
 import com.Studentmangment.studentmanagement.entity.Assignment;
 import com.Studentmangment.studentmanagement.entity.AssignmentDetails;
 import com.Studentmangment.studentmanagement.entity.AttendanceRecord;
@@ -32,17 +35,22 @@ import com.Studentmangment.studentmanagement.entity.GradeDetails;
 import com.Studentmangment.studentmanagement.entity.InterventionCase;
 import com.Studentmangment.studentmanagement.entity.LearningResource;
 import com.Studentmangment.studentmanagement.entity.LibraryBook;
+import com.Studentmangment.studentmanagement.entity.ResourceBookmark;
 import com.Studentmangment.studentmanagement.entity.Student;
 import com.Studentmangment.studentmanagement.entity.StudentCourseDetails;
 import com.Studentmangment.studentmanagement.entity.Teacher;
+import com.Studentmangment.studentmanagement.repository.AcademicDoubtRepository;
 import com.Studentmangment.studentmanagement.repository.AcademicNotificationRepository;
+import com.Studentmangment.studentmanagement.repository.AcademicTodoRepository;
 import com.Studentmangment.studentmanagement.repository.AttendanceRecordRepository;
 import com.Studentmangment.studentmanagement.repository.ConsultationRequestRepository;
 import com.Studentmangment.studentmanagement.repository.FacultyAvailabilityRepository;
 import com.Studentmangment.studentmanagement.repository.InterventionCaseRepository;
 import com.Studentmangment.studentmanagement.repository.LearningResourceRepository;
 import com.Studentmangment.studentmanagement.repository.LibraryBookRepository;
+import com.Studentmangment.studentmanagement.repository.ResourceBookmarkRepository;
 import com.Studentmangment.studentmanagement.service.AssignmentDetailsService;
+import com.Studentmangment.studentmanagement.service.AssignmentService;
 import com.Studentmangment.studentmanagement.util.AcademicRules;
 import com.Studentmangment.studentmanagement.util.SecurityRoles;
 
@@ -54,6 +62,7 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
     @Autowired private CourseService courseService;
     @Autowired private StudentCourseDetailsService studentCourseDetailsService;
     @Autowired private AssignmentDetailsService assignmentDetailsService;
+    @Autowired private AssignmentService assignmentService;
     @Autowired private FacultyAvailabilityRepository availabilityRepository;
     @Autowired private ConsultationRequestRepository consultationRepository;
     @Autowired private LibraryBookRepository libraryBookRepository;
@@ -61,6 +70,9 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
     @Autowired private AttendanceRecordRepository attendanceRecordRepository;
     @Autowired private AcademicNotificationRepository notificationRepository;
     @Autowired private InterventionCaseRepository interventionCaseRepository;
+    @Autowired private AcademicTodoRepository academicTodoRepository;
+    @Autowired private ResourceBookmarkRepository resourceBookmarkRepository;
+    @Autowired private AcademicDoubtRepository academicDoubtRepository;
 
     @Override
     public Map<String, Object> overview() {
@@ -288,14 +300,47 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
         }
         Student student = currentStudent(auth);
         int teacherId = intValue(payload.get("teacherId"));
+        if (teacherId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please select an eligible faculty instructor.");
+        }
         Teacher teacher = teacherService.findByTeacherId(teacherId);
         if (teacher == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Teacher not found");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected faculty member does not exist or is unavailable.");
         }
+        LocalDateTime requestedAt = parseDateTime(payload.get("requestedAt"));
+        if (requestedAt == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment date and time is required.");
+        }
+        if (requestedAt.isBefore(LocalDateTime.now().minusMinutes(5))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment date and time must be scheduled for a future slot.");
+        }
+
+        // Check for conflicting teacher consultations around this time (within 30 minutes)
+        List<ConsultationRequest> teacherBookings = consultationRepository.findByTeacherIdOrderByRequestedAtDesc(teacherId);
+        for (ConsultationRequest cr : teacherBookings) {
+            if (("PENDING".equalsIgnoreCase(cr.getStatus()) || "CONFIRMED".equalsIgnoreCase(cr.getStatus())) && cr.getRequestedAt() != null) {
+                long diff = Math.abs(java.time.Duration.between(cr.getRequestedAt(), requestedAt).toMinutes());
+                if (diff < 30) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "The selected faculty member already has a consultation booked around this time. Please choose a different time slot.");
+                }
+            }
+        }
+
+        // Check for conflicting student consultations around this time
+        List<ConsultationRequest> studentBookings = consultationRepository.findByStudentIdOrderByRequestedAtDesc(student.getId());
+        for (ConsultationRequest cr : studentBookings) {
+            if (("PENDING".equalsIgnoreCase(cr.getStatus()) || "CONFIRMED".equalsIgnoreCase(cr.getStatus())) && cr.getRequestedAt() != null) {
+                long diff = Math.abs(java.time.Duration.between(cr.getRequestedAt(), requestedAt).toMinutes());
+                if (diff < 30) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "You already have another appointment scheduled around this time. Please choose another time slot.");
+                }
+            }
+        }
+
         ConsultationRequest request = new ConsultationRequest();
         request.setStudentId(student.getId());
         request.setTeacherId(teacherId);
-        request.setRequestedAt(parseDateTime(payload.get("requestedAt")));
+        request.setRequestedAt(requestedAt);
         request.setStudentNotes(stringValue(payload.get("studentNotes")));
         request.setStatus("PENDING");
         return consultationRow(consultationRepository.save(request));
@@ -429,6 +474,10 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
                 String haystack = (resource.getTitle() + " " + resource.getCourseCode() + " " + resource.getDescription()).toLowerCase();
                 if (!haystack.contains(query.toLowerCase())) continue;
             }
+            String role = SecurityRoles.canonicalRole(auth);
+            int userId = SecurityRoles.isStudent(auth) ? currentStudent(auth).getId() : (SecurityRoles.isTeacher(auth) ? currentTeacher(auth).getId() : 0);
+            boolean isBookmarked = resourceBookmarkRepository.existsByUserIdAndUserRoleAndResourceId(userId, role, resource.getId());
+
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", resource.getId());
             row.put("title", resource.getTitle());
@@ -436,6 +485,7 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
             row.put("description", resource.getDescription());
             row.put("resourceUrl", resource.getResourceUrl());
             row.put("teacherId", resource.getTeacherId());
+            row.put("isBookmarked", isBookmarked);
             Teacher t = teacherService.findByTeacherId(resource.getTeacherId());
             row.put("teacherName", t != null ? t.getFirstName() + " " + t.getLastName() : "Faculty");
             rows.add(row);
@@ -1084,4 +1134,792 @@ public class AcademicPortalServiceImpl implements AcademicPortalService {
     private double round(double value) {
         return Math.round(value * 10.0) / 10.0;
     }
+
+    // ==========================================
+    // SMART ACADEMIC TO-DO LIST IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    public List<Map<String, Object>> todos() {
+        Authentication auth = requireAuth();
+        List<Map<String, Object>> items = new ArrayList<>();
+
+        if (SecurityRoles.isStudent(auth)) {
+            Student student = currentStudent(auth);
+
+            // 1. Pending Coursework / Assignments
+            List<StudentCourseDetails> scdList = safeList(studentCourseDetailsService.findByStudentId(student.getId()));
+            for (StudentCourseDetails scd : scdList) {
+                Course c = courseService.findCourseById(scd.getCourseId());
+                String cCode = c != null ? c.getCode() : "COURSE";
+                String cName = c != null ? c.getName() : "Course #" + scd.getCourseId();
+                if (scd.getAssignments() != null) {
+                    for (Assignment a : scd.getAssignments()) {
+                        AssignmentDetails ad = assignmentDetailsService.findByAssignmentAndStudentCourseDetailsId(a.getId(), scd.getId());
+                        if (ad == null || ad.getIsDone() != 1) {
+                            Map<String, Object> todo = new LinkedHashMap<>();
+                            todo.put("id", "assign-" + a.getId() + "-" + scd.getId());
+                            todo.put("assignmentId", a.getId());
+                            todo.put("title", "Submit " + a.getName() + " (" + cName + ")");
+                            todo.put("category", "ASSIGNMENT");
+                            todo.put("courseCode", cCode);
+                            todo.put("courseName", cName);
+                            LocalDate due = a.getDueDate() != null ? LocalDate.parse(a.getDueDate()) : LocalDate.now().plusDays(3);
+                            todo.put("dueDate", due.toString());
+                            long daysLeft = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), due);
+                            todo.put("daysRemaining", (int) daysLeft);
+                            todo.put("priority", daysLeft <= 2 ? "URGENT" : (daysLeft <= 5 ? "HIGH" : "NORMAL"));
+                            todo.put("completed", false);
+                            todo.put("isSystemGenerated", true);
+                            items.add(todo);
+                        }
+                    }
+                }
+
+                // 2. Attendance Shortfall Alert To-Do
+                List<AttendanceRecord> records = attendanceRecordRepository.findByStudentIdAndCourseId(student.getId(), scd.getCourseId());
+                Double attPct = attendancePercent(records);
+                if (attPct != null && attPct < 75.0) {
+                    long total = records.stream().filter(r -> r.getIsDemo() == null || !r.getIsDemo()).count();
+                    long present = records.stream().filter(r -> (r.getIsDemo() == null || !r.getIsDemo()) && ("PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus()))).count();
+                    int needed = (int) Math.ceil((75.0 * total - 100.0 * present) / (100.0 - 75.0));
+                    if (needed < 1) needed = 1;
+                    Map<String, Object> attTodo = new LinkedHashMap<>();
+                    attTodo.put("id", "att-" + scd.getCourseId());
+                    attTodo.put("title", "Attendance Recovery: Attend next " + needed + " sessions in " + cName + " to reach 75%");
+                    attTodo.put("category", "ATTENDANCE");
+                    attTodo.put("courseCode", cCode);
+                    attTodo.put("courseName", cName);
+                    attTodo.put("dueDate", LocalDate.now().plusDays(7).toString());
+                    attTodo.put("priority", "HIGH");
+                    attTodo.put("completed", false);
+                    attTodo.put("isSystemGenerated", true);
+                    items.add(attTodo);
+                }
+            }
+
+            // 3. User Custom To-Dos
+            List<AcademicTodo> customTodos = academicTodoRepository.findByStudentIdOrderByDueDateAscCreatedAtDesc(student.getId());
+            for (AcademicTodo ct : customTodos) {
+                Map<String, Object> todo = new LinkedHashMap<>();
+                todo.put("id", String.valueOf(ct.getId()));
+                todo.put("dbId", ct.getId());
+                todo.put("title", ct.getTitle());
+                todo.put("category", ct.getCategory() != null ? ct.getCategory() : "PERSONAL");
+                todo.put("courseCode", ct.getCourseCode());
+                todo.put("dueDate", ct.getDueDate() != null ? ct.getDueDate().toString() : null);
+                todo.put("priority", ct.getPriority() != null ? ct.getPriority() : "NORMAL");
+                todo.put("completed", ct.isCompleted());
+                todo.put("isSystemGenerated", false);
+                items.add(todo);
+            }
+        }
+        return items;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> createTodo(Map<String, Object> payload) {
+        Authentication auth = requireAuth();
+        if (!SecurityRoles.isStudent(auth)) {
+            throw new AccessDeniedException("Only students can manage personal study to-dos");
+        }
+        Student student = currentStudent(auth);
+        AcademicTodo todo = new AcademicTodo();
+        todo.setStudentId(student.getId());
+        todo.setTitle(stringValue(payload.get("title")));
+        todo.setCategory(payload.get("category") != null ? stringValue(payload.get("category")) : "PERSONAL");
+        todo.setPriority(payload.get("priority") != null ? stringValue(payload.get("priority")) : "NORMAL");
+        if (payload.get("dueDate") != null) {
+            todo.setDueDate(LocalDate.parse(stringValue(payload.get("dueDate"))));
+        }
+        if (payload.get("courseCode") != null) {
+            todo.setCourseCode(stringValue(payload.get("courseCode")));
+        }
+        todo.setCompleted(false);
+        AcademicTodo saved = academicTodoRepository.save(todo);
+        Map<String, Object> res = new HashMap<>();
+        res.put("id", saved.getId());
+        res.put("message", "To-do item created successfully");
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> toggleTodo(int id) {
+        Authentication auth = requireAuth();
+        AcademicTodo todo = academicTodoRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "To-do item not found"));
+        if (SecurityRoles.isStudent(auth) && todo.getStudentId() != currentStudent(auth).getId()) {
+            throw new AccessDeniedException("Cannot toggle another student's to-do item");
+        }
+        todo.setCompleted(!todo.isCompleted());
+        academicTodoRepository.save(todo);
+        Map<String, Object> res = new HashMap<>();
+        res.put("id", todo.getId());
+        res.put("completed", todo.isCompleted());
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> deleteTodo(int id) {
+        Authentication auth = requireAuth();
+        AcademicTodo todo = academicTodoRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "To-do item not found"));
+        if (SecurityRoles.isStudent(auth) && todo.getStudentId() != currentStudent(auth).getId()) {
+            throw new AccessDeniedException("Cannot delete another student's to-do item");
+        }
+        academicTodoRepository.delete(todo);
+        return Map.of("message", "To-do deleted successfully", "id", id);
+    }
+
+    // ==========================================
+    // ATTENDANCE RECOVERY CALCULATOR IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    public Map<String, Object> attendanceRecovery(Integer targetPercentage, Integer studentId) {
+        Authentication auth = requireAuth();
+        Student student;
+        if (studentId != null && (SecurityRoles.isTeacher(auth) || SecurityRoles.isAdmin(auth))) {
+            student = studentService.findByStudentId(studentId);
+        } else {
+            student = currentStudent(auth);
+        }
+        if (student == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Student profile not found");
+
+        double target = (targetPercentage != null && targetPercentage >= 50 && targetPercentage <= 100) ? targetPercentage : 75.0;
+
+        List<AttendanceRecord> allRecords = attendanceRecordRepository.findByStudentIdOrderBySessionDateDesc(student.getId());
+        long overallTotal = allRecords.stream().filter(r -> r.getIsDemo() == null || !r.getIsDemo()).count();
+        long overallPresent = allRecords.stream().filter(r -> (r.getIsDemo() == null || !r.getIsDemo()) && ("PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus()))).count();
+        double currentOverallPct = overallTotal > 0 ? round((overallPresent * 100.0) / overallTotal) : 100.0;
+
+        int overallNeededToAttend = 0;
+        int overallMarginToMiss = 0;
+        if (currentOverallPct < target) {
+            overallNeededToAttend = (int) Math.ceil((target * overallTotal - 100.0 * overallPresent) / (100.0 - target));
+            if (overallNeededToAttend < 0) overallNeededToAttend = 0;
+        } else {
+            overallMarginToMiss = (int) Math.floor((100.0 * overallPresent - target * overallTotal) / target);
+            if (overallMarginToMiss < 0) overallMarginToMiss = 0;
+        }
+
+        List<StudentCourseDetails> scdList = safeList(studentCourseDetailsService.findByStudentId(student.getId()));
+        List<Map<String, Object>> courseBreakdown = new ArrayList<>();
+        for (StudentCourseDetails scd : scdList) {
+            Course c = courseService.findCourseById(scd.getCourseId());
+            String cName = c != null ? c.getName() : "Course #" + scd.getCourseId();
+            String cCode = c != null ? c.getCode() : "CODE";
+            List<AttendanceRecord> cRecords = attendanceRecordRepository.findByStudentIdAndCourseId(student.getId(), scd.getCourseId());
+            long cTot = cRecords.stream().filter(r -> r.getIsDemo() == null || !r.getIsDemo()).count();
+            long cPres = cRecords.stream().filter(r -> (r.getIsDemo() == null || !r.getIsDemo()) && ("PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus()))).count();
+            double cPct = cTot > 0 ? round((cPres * 100.0) / cTot) : 100.0;
+
+            int cNeeded = 0;
+            int cMargin = 0;
+            if (cPct < target) {
+                cNeeded = (int) Math.ceil((target * cTot - 100.0 * cPres) / (100.0 - target));
+                if (cNeeded < 0) cNeeded = 0;
+            } else {
+                cMargin = (int) Math.floor((100.0 * cPres - target * cTot) / target);
+                if (cMargin < 0) cMargin = 0;
+            }
+
+            Map<String, Object> crow = new LinkedHashMap<>();
+            crow.put("courseId", scd.getCourseId());
+            crow.put("courseName", cName);
+            crow.put("courseCode", cCode);
+            crow.put("totalSessions", cTot);
+            crow.put("attendedSessions", cPres);
+            crow.put("currentPercentage", cPct);
+            crow.put("meetsTarget", cPct >= target);
+            crow.put("consecutiveSessionsNeeded", cNeeded);
+            crow.put("marginSessionsCanMiss", cMargin);
+            crow.put("status", cPct >= target ? "ELIGIBLE" : "ACTION_REQUIRED");
+            courseBreakdown.add(crow);
+        }
+
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("studentId", student.getId());
+        res.put("studentName", student.getFirstName() + " " + student.getLastName());
+        res.put("targetPercentage", target);
+        res.put("overallTotalSessions", overallTotal);
+        res.put("overallAttendedSessions", overallPresent);
+        res.put("currentOverallPercentage", currentOverallPct);
+        res.put("overallMeetsTarget", currentOverallPct >= target);
+        res.put("overallConsecutiveSessionsNeeded", overallNeededToAttend);
+        res.put("overallMarginSessionsCanMiss", overallMarginToMiss);
+        res.put("courses", courseBreakdown);
+        res.put("formulaNote", String.format("Accreditation recovery formula: N = ⌈(Target × Total - 100 × Attended) / (100 - Target)⌉ for Target = %.0f%%", target));
+        return res;
+    }
+
+    // ==========================================
+    // PERSONALIZED STUDY PLANNER IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    public Map<String, Object> studyPlan(Map<String, Object> preferences) {
+        Authentication auth = requireAuth();
+        Student student = currentStudent(auth);
+        List<StudentCourseDetails> scdList = safeList(studentCourseDetailsService.findByStudentId(student.getId()));
+
+        int weekdayHours = (preferences != null && preferences.get("weekdayHours") != null) ? intValue(preferences.get("weekdayHours")) : 3;
+        int weekendHours = (preferences != null && preferences.get("weekendHours") != null) ? intValue(preferences.get("weekendHours")) : 5;
+        int totalWeeklyHours = (weekdayHours * 5) + (weekendHours * 2);
+
+        List<Map<String, Object>> subjectAllocations = new ArrayList<>();
+        double totalWeight = 0;
+
+        for (StudentCourseDetails scd : scdList) {
+            Course c = courseService.findCourseById(scd.getCourseId());
+            if (c == null) continue;
+            Double avg = courseAverage(scd.getGradeDetails());
+            Double att = attendancePercent(attendanceRecordRepository.findByStudentIdAndCourseId(student.getId(), c.getId()));
+            int missingAssignments = countMissingAssignments(scd);
+
+            double multiplier = 1.0;
+            if (avg != null && avg < 60.0) multiplier += 0.8;
+            else if (avg != null && avg < 75.0) multiplier += 0.4;
+            if (att != null && att < 75.0) multiplier += 0.3;
+            if (missingAssignments > 0) multiplier += (0.2 * missingAssignments);
+
+            totalWeight += multiplier;
+            Map<String, Object> sa = new LinkedHashMap<>();
+            sa.put("courseId", c.getId());
+            sa.put("courseCode", c.getCode());
+            sa.put("courseName", c.getName());
+            sa.put("currentAverage", avg != null ? avg : 75.0);
+            sa.put("attendanceRate", att != null ? att : 85.0);
+            sa.put("missingAssignments", missingAssignments);
+            sa.put("urgencyFactor", round(multiplier));
+            sa.put("status", (avg != null && avg < 60) ? "HIGH_PRIORITY" : ((avg != null && avg < 75) ? "MODERATE_FOCUS" : "MAINTENANCE"));
+            subjectAllocations.add(sa);
+        }
+
+        for (Map<String, Object> sa : subjectAllocations) {
+            double factor = (double) sa.get("urgencyFactor");
+            double allocated = totalWeight > 0 ? round((factor / totalWeight) * totalWeeklyHours) : round((double) totalWeeklyHours / Math.max(1, subjectAllocations.size()));
+            sa.put("allocatedWeeklyHours", Math.max(2.0, allocated));
+            sa.put("recommendedTechnique", ((double) sa.get("currentAverage") < 65) ? "Active Recall & Worked Problem Sets" : "Spaced Repetition & Chapter Quizzes");
+        }
+
+        String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+        List<Map<String, Object>> weeklySchedule = new ArrayList<>();
+        int subjectIdx = 0;
+        for (String day : days) {
+            boolean isWeekend = "Saturday".equals(day) || "Sunday".equals(day);
+            int dayTarget = isWeekend ? weekendHours : weekdayHours;
+
+            List<Map<String, Object>> slots = new ArrayList<>();
+            if (!subjectAllocations.isEmpty()) {
+                Map<String, Object> s1 = subjectAllocations.get(subjectIdx % subjectAllocations.size());
+                slots.add(Map.of(
+                    "timeSlot", isWeekend ? "10:00 AM - 12:30 PM" : "05:00 PM - 06:30 PM",
+                    "courseCode", s1.get("courseCode"),
+                    "courseName", s1.get("courseName"),
+                    "focus", "Core concepts & continuous evaluation prep",
+                    "durationHours", isWeekend ? 2.5 : 1.5
+                ));
+                subjectIdx++;
+
+                Map<String, Object> s2 = subjectAllocations.get(subjectIdx % subjectAllocations.size());
+                slots.add(Map.of(
+                    "timeSlot", isWeekend ? "03:00 PM - 05:30 PM" : "07:30 PM - 09:00 PM",
+                    "courseCode", s2.get("courseCode"),
+                    "courseName", s2.get("courseName"),
+                    "focus", "Assignment completion & revision questions",
+                    "durationHours", isWeekend ? 2.5 : 1.5
+                ));
+                subjectIdx++;
+            }
+
+            weeklySchedule.add(Map.of(
+                "day", day,
+                "isWeekend", isWeekend,
+                "targetHours", dayTarget,
+                "sessions", slots
+            ));
+        }
+
+        Map<String, Object> plan = new LinkedHashMap<>();
+        plan.put("studentName", student.getFirstName() + " " + student.getLastName());
+        plan.put("totalWeeklyHours", totalWeeklyHours);
+        plan.put("subjectAllocations", subjectAllocations);
+        plan.put("weeklySchedule", weeklySchedule);
+        plan.put("studyTips", List.of(
+            "Use 50-minute Pomodoro focus blocks with 10-minute rest intervals.",
+            "Prioritize HIGH_PRIORITY subjects during your peak morning/evening focus windows.",
+            "Review your study plan weekly after continuous assessment grades are published."
+        ));
+        return plan;
+    }
+
+    // ==========================================
+    // RESOURCE BOOKMARKING IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    @Transactional
+    public Map<String, Object> toggleBookmark(int resourceId) {
+        Authentication auth = requireAuth();
+        String role = SecurityRoles.canonicalRole(auth);
+        int userId = SecurityRoles.isStudent(auth) ? currentStudent(auth).getId() : (SecurityRoles.isTeacher(auth) ? currentTeacher(auth).getId() : 0);
+
+        boolean exists = resourceBookmarkRepository.existsByUserIdAndUserRoleAndResourceId(userId, role, resourceId);
+        if (exists) {
+            resourceBookmarkRepository.deleteByUserIdAndUserRoleAndResourceId(userId, role, resourceId);
+            return Map.of("resourceId", resourceId, "bookmarked", false, "message", "Bookmark removed");
+        } else {
+            ResourceBookmark bookmark = new ResourceBookmark(userId, role, resourceId);
+            resourceBookmarkRepository.save(bookmark);
+            return Map.of("resourceId", resourceId, "bookmarked", true, "message", "Resource bookmarked");
+        }
+    }
+
+    @Override
+    public List<Map<String, Object>> bookmarkedResources() {
+        Authentication auth = requireAuth();
+        String role = SecurityRoles.canonicalRole(auth);
+        int userId = SecurityRoles.isStudent(auth) ? currentStudent(auth).getId() : (SecurityRoles.isTeacher(auth) ? currentTeacher(auth).getId() : 0);
+
+        List<ResourceBookmark> bookmarks = resourceBookmarkRepository.findByUserIdAndUserRole(userId, role);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ResourceBookmark bm : bookmarks) {
+            learningResourceRepository.findById(bm.getResourceId()).ifPresent(res -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", res.getId());
+                row.put("title", res.getTitle());
+                row.put("courseCode", res.getCourseCode());
+                row.put("description", res.getDescription());
+                row.put("resourceUrl", res.getResourceUrl());
+                row.put("isBookmarked", true);
+                row.put("bookmarkedAt", bm.getCreatedAt());
+                result.add(row);
+            });
+        }
+        return result;
+    }
+
+    // ==========================================
+    // DOUBT & CLARIFICATION REQUESTS IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    public List<Map<String, Object>> doubts(Integer courseId) {
+        Authentication auth = requireAuth();
+        List<AcademicDoubt> doubts;
+        if (SecurityRoles.isStudent(auth)) {
+            Student student = currentStudent(auth);
+            doubts = academicDoubtRepository.findByStudentIdOrderByCreatedAtDesc(student.getId());
+        } else if (SecurityRoles.isTeacher(auth)) {
+            Teacher teacher = currentTeacher(auth);
+            doubts = academicDoubtRepository.findByTeacherIdOrderByCreatedAtDesc(teacher.getId());
+        } else {
+            doubts = courseId != null ? academicDoubtRepository.findByCourseIdOrderByCreatedAtDesc(courseId) : academicDoubtRepository.findAllByOrderByCreatedAtDesc();
+        }
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (AcademicDoubt d : doubts) {
+            if (courseId != null && d.getCourseId() != courseId) continue;
+            Student s = studentService.findByStudentId(d.getStudentId());
+            Course c = courseService.findCourseById(d.getCourseId());
+            Teacher t = d.getTeacherId() != null ? teacherService.findByTeacherId(d.getTeacherId()) : (c != null ? c.getTeacher() : null);
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", d.getId());
+            row.put("studentId", d.getStudentId());
+            row.put("studentName", s != null ? s.getFirstName() + " " + s.getLastName() : "Student #" + d.getStudentId());
+            row.put("courseId", d.getCourseId());
+            row.put("courseName", c != null ? c.getName() : "Course #" + d.getCourseId());
+            row.put("courseCode", c != null ? c.getCode() : "");
+            row.put("teacherName", t != null ? t.getFirstName() + " " + t.getLastName() : "Faculty");
+            row.put("topic", d.getTopic());
+            row.put("question", d.getQuestion());
+            row.put("answer", d.getAnswer());
+            row.put("status", d.getStatus());
+            row.put("createdAt", d.getCreatedAt());
+            row.put("answeredAt", d.getAnsweredAt());
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> createDoubt(Map<String, Object> payload) {
+        Authentication auth = requireAuth();
+        if (!SecurityRoles.isStudent(auth)) {
+            throw new AccessDeniedException("Only enrolled students can post academic doubts");
+        }
+        Student student = currentStudent(auth);
+        int courseId = intValue(payload.get("courseId"));
+        Course course = courseService.findCourseById(courseId);
+        if (course == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found");
+
+        Integer teacherId = course.getTeacher() != null ? course.getTeacher().getId() : null;
+        AcademicDoubt doubt = new AcademicDoubt(student.getId(), courseId, teacherId, stringValue(payload.get("topic")), stringValue(payload.get("question")));
+        AcademicDoubt saved = academicDoubtRepository.save(doubt);
+
+        if (teacherId != null) {
+            AcademicNotification notif = new AcademicNotification();
+            notif.setRecipientRole("ROLE_TEACHER");
+            notif.setRecipientUserId(teacherId);
+            notif.setTitle("New Academic Doubt: " + course.getName());
+            notif.setMessage(student.getFirstName() + " " + student.getLastName() + " asked a question on " + doubt.getTopic());
+            notif.setNotificationType("DOUBT_RECEIVED");
+            notif.setRead(false);
+            notificationRepository.save(notif);
+        }
+
+        return Map.of("id", saved.getId(), "message", "Doubt submitted successfully to faculty");
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> replyDoubt(int doubtId, Map<String, Object> payload) {
+        Authentication auth = requireAuth();
+        if (!SecurityRoles.isTeacher(auth) && !SecurityRoles.isAdmin(auth)) {
+            throw new AccessDeniedException("Only faculty or administrators can resolve doubts");
+        }
+        AcademicDoubt doubt = academicDoubtRepository.findById(doubtId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Doubt not found"));
+
+        String answer = stringValue(payload.get("answer"));
+        doubt.setAnswer(answer);
+        doubt.setStatus("RESOLVED");
+        doubt.setAnsweredAt(LocalDateTime.now());
+        academicDoubtRepository.save(doubt);
+
+        AcademicNotification notif = new AcademicNotification();
+        notif.setRecipientRole("ROLE_STUDENT");
+        notif.setRecipientUserId(doubt.getStudentId());
+        notif.setTitle("Doubt Answered: " + doubt.getTopic());
+        notif.setMessage("Your instructor has answered your question: \"" + (answer.length() > 80 ? answer.substring(0, 77) + "..." : answer) + "\"");
+        notif.setNotificationType("PROGRESS_ALERT");
+        notif.setRead(false);
+        notificationRepository.save(notif);
+
+        return Map.of("id", doubt.getId(), "message", "Response published and student notified");
+    }
+
+    // ==========================================
+    // TEACHER CLASS HEALTH DASHBOARD IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    public List<Map<String, Object>> classHealth() {
+        Authentication auth = requireAuth();
+        List<Course> courses;
+        if (SecurityRoles.isAdmin(auth)) {
+            courses = courseService.findAllCourses();
+        } else if (SecurityRoles.isTeacher(auth)) {
+            Teacher teacher = currentTeacher(auth);
+            courses = teacher.getCourses() != null ? teacher.getCourses() : new ArrayList<>();
+        } else {
+            throw new AccessDeniedException("Only faculty and administrators can view class health diagnostics");
+        }
+
+        List<Map<String, Object>> healthReport = new ArrayList<>();
+        for (Course c : courses) {
+            int studentCount = c.getStudents() != null ? c.getStudents().size() : 0;
+            Double avgGrade = classAverage(c.getId());
+            Double attRate = classAttendance(c.getId());
+
+            int totalAssignmentSlots = 0;
+            int completedAssignments = 0;
+            if (c.getStudents() != null && !c.getStudents().isEmpty()) {
+                for (Student s : c.getStudents()) {
+                    StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(s.getId(), c.getId());
+                    if (scd != null && scd.getAssignments() != null) {
+                        for (Assignment a : scd.getAssignments()) {
+                            totalAssignmentSlots++;
+                            AssignmentDetails ad = assignmentDetailsService.findByAssignmentAndStudentCourseDetailsId(a.getId(), scd.getId());
+                            if (ad != null && ad.getIsDone() == 1) {
+                                completedAssignments++;
+                            }
+                        }
+                    }
+                }
+            }
+            double assignmentRate = totalAssignmentSlots > 0 ? round((completedAssignments * 100.0) / totalAssignmentSlots) : 100.0;
+
+            int atRiskCount = 0;
+            if (c.getStudents() != null) {
+                for (Student s : c.getStudents()) {
+                    StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(s.getId(), c.getId());
+                    Double sAvg = scd != null ? courseAverage(scd.getGradeDetails()) : null;
+                    Double sAtt = attendancePercent(attendanceRecordRepository.findByStudentIdAndCourseId(s.getId(), c.getId()));
+                    if ((sAvg != null && sAvg < 60.0) || (sAtt != null && sAtt < 75.0)) {
+                        atRiskCount++;
+                    }
+                }
+            }
+
+            double gradeVal = avgGrade != null ? avgGrade : 75.0;
+            double attVal = attRate != null ? attRate : 85.0;
+            double healthIndex = round((0.4 * gradeVal) + (0.4 * attVal) + (0.2 * assignmentRate));
+
+            String status;
+            if (healthIndex >= 85.0) status = "EXCELLENT";
+            else if (healthIndex >= 75.0) status = "HEALTHY";
+            else if (healthIndex >= 65.0) status = "NEEDS_ATTENTION";
+            else status = "CRITICAL";
+
+            Map<String, Object> ch = new LinkedHashMap<>();
+            ch.put("courseId", c.getId());
+            ch.put("courseCode", c.getCode());
+            ch.put("courseName", c.getName());
+            ch.put("totalStudents", studentCount);
+            ch.put("averageGrade", avgGrade != null ? avgGrade : "N/A");
+            ch.put("attendanceRate", attRate != null ? attRate : "N/A");
+            ch.put("assignmentCompletionRate", assignmentRate);
+            ch.put("atRiskCount", atRiskCount);
+            ch.put("healthIndex", healthIndex);
+            ch.put("status", status);
+            ch.put("recommendation", atRiskCount > 0 ? "Schedule intervention review for " + atRiskCount + " at-risk student(s)." : "Class metrics meet institutional accreditation benchmarks.");
+            healthReport.add(ch);
+        }
+        return healthReport;
+    }
+
+    // ==========================================
+    // BULK MARKS ENTRY IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    @Transactional
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> recordBulkMarks(Map<String, Object> payload) {
+        Authentication auth = requireAuth();
+        if (!SecurityRoles.isTeacher(auth) && !SecurityRoles.isAdmin(auth)) {
+            throw new AccessDeniedException("Only faculty and administrators can enter academic marks");
+        }
+        int courseId = intValue(payload.get("courseId"));
+        if (!canManageCourse(auth, courseId)) {
+            throw new AccessDeniedException("Not authorized to manage marks for this course");
+        }
+        Course course = courseService.findCourseById(courseId);
+
+        List<Object> records = (List<Object>) payload.get("records");
+        if (records == null || records.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No student grade records provided");
+        }
+
+        int updatedCount = 0;
+        for (Object item : records) {
+            Map<String, Object> entry = (Map<String, Object>) item;
+            int studentId = intValue(entry.get("studentId"));
+            StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(studentId, courseId);
+            if (scd == null) continue;
+
+            int g1 = entry.get("gradeOne") != null ? (int) Math.round(doubleValue(entry.get("gradeOne"))) : -1;
+            int g2 = entry.get("gradeTwo") != null ? (int) Math.round(doubleValue(entry.get("gradeTwo"))) : -1;
+            int g3 = entry.get("gradeThree") != null ? (int) Math.round(doubleValue(entry.get("gradeThree"))) : -1;
+
+            GradeDetails gd = scd.getGradeDetails();
+            if (gd != null) {
+                gd.setGradeOne(g1);
+                gd.setGradeTwo(g2);
+                gd.setGradeThree(g3);
+            } else {
+                gd = new GradeDetails();
+                gd.setGradeOne(g1);
+                gd.setGradeTwo(g2);
+                gd.setGradeThree(g3);
+                scd.setGradeDetails(gd);
+            }
+            studentCourseDetailsService.save(scd);
+            updatedCount++;
+
+            AcademicNotification notif = new AcademicNotification();
+            notif.setRecipientRole("ROLE_STUDENT");
+            notif.setRecipientUserId(studentId);
+            notif.setTitle("Grades Updated: " + (course != null ? course.getName() : "Course"));
+            notif.setMessage("Your internal marks have been recorded for " + (course != null ? course.getName() : "your course") + ".");
+            notif.setNotificationType("GRADE_UPDATE");
+            notif.setRead(false);
+            notificationRepository.save(notif);
+        }
+
+        return Map.of("updated", updatedCount, "message", "Marks recorded successfully for " + updatedCount + " students");
+    }
+
+    // ==========================================
+    // ASSIGNMENT SUBMISSION TRACKER IMPLEMENTATION
+    // ==========================================
+
+    @Override
+    public List<Map<String, Object>> assignmentSubmissions(int assignmentId) {
+        Authentication auth = requireAuth();
+        Assignment assignment = assignmentService.findAssignmentById(assignmentId);
+        if (assignment == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Assignment not found");
+
+        List<Course> courses = courseService.findAllCourses();
+        List<Map<String, Object>> roster = new ArrayList<>();
+
+        for (Course c : courses) {
+            if (c.getStudents() == null) continue;
+            for (Student s : c.getStudents()) {
+                StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(s.getId(), c.getId());
+                if (scd != null && scd.getAssignments() != null) {
+                    boolean hasAssignment = scd.getAssignments().stream().anyMatch(a -> a.getId() == assignmentId);
+                    if (hasAssignment) {
+                        if (SecurityRoles.isStudent(auth) && s.getId() != currentStudent(auth).getId()) {
+                            continue;
+                        }
+                        AssignmentDetails ad = assignmentDetailsService.findByAssignmentAndStudentCourseDetailsId(assignmentId, scd.getId());
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("id", ad != null ? ad.getId() : ("assign-" + assignmentId + "-" + s.getId()));
+                        row.put("assignmentId", assignmentId);
+                        row.put("assignmentName", assignment.getName());
+                        row.put("dueDate", assignment.getDueDate());
+                        row.put("studentId", s.getId());
+                        row.put("studentName", s.getFirstName() + " " + s.getLastName());
+                        row.put("studentEmail", s.getEmail());
+                        row.put("courseName", c.getName());
+                        row.put("courseCode", c.getCode());
+                        boolean isDone = ad != null && ad.getIsDone() == 1;
+                        row.put("isDone", isDone);
+                        row.put("status", isDone ? "SUBMITTED" : "PENDING");
+                        roster.add(row);
+                    }
+                }
+            }
+        }
+        return roster;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateAssignmentSubmission(int assignmentId, int studentId, Map<String, Object> payload) {
+        Authentication auth = requireAuth();
+        Assignment assignment = assignmentService.findAssignmentById(assignmentId);
+        if (assignment == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Assignment not found");
+
+        List<StudentCourseDetails> scdList = safeList(studentCourseDetailsService.findByStudentId(studentId));
+        AssignmentDetails targetDetail = null;
+        for (StudentCourseDetails scd : scdList) {
+            AssignmentDetails ad = assignmentDetailsService.findByAssignmentAndStudentCourseDetailsId(assignmentId, scd.getId());
+            if (ad != null) {
+                targetDetail = ad;
+                break;
+            }
+        }
+        if (targetDetail == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Assignment enrollment record not found for student");
+        }
+
+        if (SecurityRoles.isStudent(auth)) {
+            if (currentStudent(auth).getId() != studentId) {
+                throw new AccessDeniedException("Cannot submit assignments on behalf of another student");
+            }
+            targetDetail.setIsDone(1);
+        } else if (SecurityRoles.isTeacher(auth) || SecurityRoles.isAdmin(auth)) {
+            boolean isDone = Boolean.TRUE.equals(payload.get("isDone")) || "1".equals(String.valueOf(payload.get("isDone")));
+            targetDetail.setIsDone(isDone ? 1 : 0);
+        }
+        assignmentDetailsService.save(targetDetail);
+
+        AcademicNotification notif = new AcademicNotification();
+        notif.setRecipientRole("ROLE_STUDENT");
+        notif.setRecipientUserId(studentId);
+        notif.setTitle("Assignment Status: " + assignment.getName());
+        notif.setMessage("Your assignment \"" + assignment.getName() + "\" is now marked as " + (targetDetail.getIsDone() == 1 ? "COMPLETED" : "PENDING") + ".");
+        notif.setNotificationType("PROGRESS_ALERT");
+        notif.setRead(false);
+        notificationRepository.save(notif);
+
+        return Map.of("assignmentId", assignmentId, "studentId", studentId, "isDone", targetDetail.getIsDone() == 1, "status", targetDetail.getIsDone() == 1 ? "SUBMITTED" : "PENDING");
+    }
+
+    // ==========================================
+    // PROGRESS ALERTS & NOTIFICATIONS READ ALL
+    // ==========================================
+
+    @Override
+    @Transactional
+    public Map<String, Object> markAllNotificationsRead() {
+        Authentication auth = requireAuth();
+        String role = SecurityRoles.canonicalRole(auth);
+        Integer userId = SecurityRoles.isAdmin(auth) ? 0 : (SecurityRoles.isTeacher(auth) ? currentTeacher(auth).getId() : currentStudent(auth).getId());
+
+        List<AcademicNotification> items = notificationRepository.findAll();
+        int count = 0;
+        for (AcademicNotification item : items) {
+            if (matchesRecipient(item, role, userId) && !item.isRead()) {
+                item.setRead(true);
+                notificationRepository.save(item);
+                count++;
+            }
+        }
+        return Map.of("markedRead", count, "message", "All notifications marked as read");
+    }
+
+    // ==========================================
+    // FACULTY MEMBERS FOR CONSULTATIONS
+    // ==========================================
+
+    @Override
+    public List<Map<String, Object>> facultyMembers() {
+        requireAuth();
+        List<Teacher> teachers = teacherService.findAllTeachers();
+        List<FacultyAvailability> allAvailabilities = availabilityRepository.findAll();
+        Map<Integer, List<FacultyAvailability>> availMap = allAvailabilities.stream()
+                .filter(a -> a.getTeacherId() > 0)
+                .collect(Collectors.groupingBy(FacultyAvailability::getTeacherId));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (teachers != null) {
+            for (Teacher t : teachers) {
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("id", t.getId());
+                String first = t.getFirstName() != null ? t.getFirstName() : "";
+                String last = t.getLastName() != null ? t.getLastName() : "";
+                String fullName = (first + " " + last).trim();
+                map.put("name", fullName.isBlank() ? t.getUserName() : fullName);
+                map.put("firstName", first);
+                map.put("lastName", last);
+                map.put("email", t.getEmail());
+                map.put("username", t.getUserName());
+
+                // Derive department / teaching domain from assigned courses
+                String department = "Academic Faculty";
+                if (t.getCourses() != null && !t.getCourses().isEmpty()) {
+                    department = t.getCourses().get(0).getName();
+                }
+                map.put("department", department);
+
+                List<FacultyAvailability> slots = availMap.getOrDefault(t.getId(), Collections.emptyList());
+                boolean hasAvailableSlot = slots.isEmpty() || slots.stream().anyMatch(s -> "AVAILABLE".equalsIgnoreCase(s.getStatus()));
+                map.put("availableForConsultation", hasAvailableSlot);
+
+                List<Map<String, Object>> slotList = new ArrayList<>();
+                String primaryOffice = "Faculty Cabin";
+                for (FacultyAvailability fa : slots) {
+                    Map<String, Object> sm = new LinkedHashMap<>();
+                    sm.put("id", fa.getId());
+                    sm.put("dayOfWeek", fa.getDayOfWeek());
+                    sm.put("startTime", fa.getStartTime() != null ? fa.getStartTime().toString() : null);
+                    sm.put("endTime", fa.getEndTime() != null ? fa.getEndTime().toString() : null);
+                    sm.put("officeLocation", fa.getOfficeLocation());
+                    sm.put("status", fa.getStatus());
+                    sm.put("notes", fa.getNotes());
+                    slotList.add(sm);
+                    if (fa.getOfficeLocation() != null && !fa.getOfficeLocation().isBlank()) {
+                        primaryOffice = fa.getOfficeLocation();
+                    }
+                }
+                map.put("availabilitySlots", slotList);
+                map.put("officeLocation", primaryOffice);
+
+                result.add(map);
+            }
+        }
+        return result;
+    }
 }
+
+

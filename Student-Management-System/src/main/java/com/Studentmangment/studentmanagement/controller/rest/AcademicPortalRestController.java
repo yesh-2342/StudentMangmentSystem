@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,6 +48,11 @@ public class AcademicPortalRestController {
     @PostMapping("/availability")
     public ResponseEntity<?> saveAvailability(@RequestBody Map<String, Object> payload) {
         return ok(() -> academicPortalService.saveAvailability(payload));
+    }
+
+    @GetMapping({"/faculty-members", "/teachers"})
+    public ResponseEntity<?> facultyMembers() {
+        return ok(() -> academicPortalService.facultyMembers());
     }
 
     @GetMapping("/consultations")
@@ -118,6 +124,110 @@ public class AcademicPortalRestController {
     @PostMapping("/simulator")
     public ResponseEntity<?> simulator(@RequestBody(required = false) Map<String, Object> payload) {
         return ok(() -> academicPortalService.simulate(payload == null ? Map.of() : payload));
+    }
+
+    // --- Smart Academic To-Do List ---
+    @GetMapping("/todos")
+    public ResponseEntity<?> todos() {
+        return ok(() -> academicPortalService.todos());
+    }
+
+    @PostMapping("/todos")
+    public ResponseEntity<?> createTodo(@RequestBody Map<String, Object> payload) {
+        return ok(() -> academicPortalService.createTodo(payload));
+    }
+
+    @PutMapping("/todos/{id}/toggle")
+    public ResponseEntity<?> toggleTodo(@PathVariable("id") int id) {
+        return ok(() -> academicPortalService.toggleTodo(id));
+    }
+
+    @DeleteMapping("/todos/{id}")
+    public ResponseEntity<?> deleteTodo(@PathVariable("id") int id) {
+        return ok(() -> academicPortalService.deleteTodo(id));
+    }
+
+    // --- Attendance Recovery Calculator ---
+    @GetMapping("/attendance/recovery")
+    public ResponseEntity<?> attendanceRecovery(
+            @RequestParam(value = "targetPercentage", required = false) Integer targetPercentage,
+            @RequestParam(value = "studentId", required = false) Integer studentId) {
+        return ok(() -> academicPortalService.attendanceRecovery(targetPercentage, studentId));
+    }
+
+    // --- Personalized Study Planner ---
+    @GetMapping("/study-plan")
+    public ResponseEntity<?> studyPlan() {
+        return ok(() -> academicPortalService.studyPlan(Map.of()));
+    }
+
+    @PostMapping("/study-plan")
+    public ResponseEntity<?> updateStudyPlan(@RequestBody(required = false) Map<String, Object> payload) {
+        return ok(() -> academicPortalService.studyPlan(payload == null ? Map.of() : payload));
+    }
+
+    // --- Course Resource Bookmarking ---
+    @PostMapping("/resources/{id}/bookmark")
+    public ResponseEntity<?> toggleBookmark(@PathVariable("id") int id) {
+        return ok(() -> academicPortalService.toggleBookmark(id));
+    }
+
+    @DeleteMapping("/resources/{id}/bookmark")
+    public ResponseEntity<?> removeBookmark(@PathVariable("id") int id) {
+        return ok(() -> academicPortalService.toggleBookmark(id));
+    }
+
+    @GetMapping("/resources/bookmarks")
+    public ResponseEntity<?> bookmarkedResources() {
+        return ok(() -> academicPortalService.bookmarkedResources());
+    }
+
+    // --- Doubt and Clarification Requests ---
+    @GetMapping("/doubts")
+    public ResponseEntity<?> doubts(@RequestParam(value = "courseId", required = false) Integer courseId) {
+        return ok(() -> academicPortalService.doubts(courseId));
+    }
+
+    @PostMapping("/doubts")
+    public ResponseEntity<?> createDoubt(@RequestBody Map<String, Object> payload) {
+        return ok(() -> academicPortalService.createDoubt(payload));
+    }
+
+    @PutMapping("/doubts/{id}/reply")
+    public ResponseEntity<?> replyDoubt(@PathVariable("id") int id, @RequestBody Map<String, Object> payload) {
+        return ok(() -> academicPortalService.replyDoubt(id, payload));
+    }
+
+    // --- Teacher Class Health Dashboard ---
+    @GetMapping("/class-health")
+    public ResponseEntity<?> classHealth() {
+        return ok(() -> academicPortalService.classHealth());
+    }
+
+    // --- Bulk Attendance and Marks Entry ---
+    @PostMapping("/bulk-marks")
+    public ResponseEntity<?> recordBulkMarks(@RequestBody Map<String, Object> payload) {
+        return ok(() -> academicPortalService.recordBulkMarks(payload));
+    }
+
+    // --- Assignment Submission Tracker ---
+    @GetMapping("/assignments/{id}/submissions")
+    public ResponseEntity<?> assignmentSubmissions(@PathVariable("id") int id) {
+        return ok(() -> academicPortalService.assignmentSubmissions(id));
+    }
+
+    @PutMapping("/assignments/{id}/submissions/{studentId}")
+    public ResponseEntity<?> updateAssignmentSubmission(
+            @PathVariable("id") int id,
+            @PathVariable("studentId") int studentId,
+            @RequestBody Map<String, Object> payload) {
+        return ok(() -> academicPortalService.updateAssignmentSubmission(id, studentId, payload));
+    }
+
+    // --- Student Progress Change Alerts & Notifications ---
+    @PutMapping("/notifications/read-all")
+    public ResponseEntity<?> markAllNotificationsRead() {
+        return ok(() -> academicPortalService.markAllNotificationsRead());
     }
 
     private ResponseEntity<?> ok(SupplierWithError supplier) {

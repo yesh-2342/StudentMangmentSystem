@@ -29,6 +29,8 @@ import com.Studentmangment.studentmanagement.entity.Course;
 import com.Studentmangment.studentmanagement.entity.GradeDetails;
 import com.Studentmangment.studentmanagement.entity.Student;
 import com.Studentmangment.studentmanagement.entity.StudentCourseDetails;
+import com.Studentmangment.studentmanagement.entity.AttendanceRecord;
+import com.Studentmangment.studentmanagement.repository.AttendanceRecordRepository;
 import com.Studentmangment.studentmanagement.service.AssignmentDetailsService;
 import com.Studentmangment.studentmanagement.service.CourseService;
 import com.Studentmangment.studentmanagement.service.StudentCourseDetailsService;
@@ -49,6 +51,9 @@ public class StudentRestController {
 
     @Autowired
     private AssignmentDetailsService assignmentDetailsService;
+
+    @Autowired
+    private AttendanceRecordRepository attendanceRecordRepository;
 
     @GetMapping("/{studentId}/dashboard")
     public ResponseEntity<?> getStudentDashboard(@PathVariable("studentId") int studentId) {
@@ -147,6 +152,18 @@ public class StudentRestController {
                     cDto.setAverageGrade("N/A");
                 }
 
+                List<AttendanceRecord> cAttList = attendanceRecordRepository.findByStudentIdAndCourseId(studentId, scd.getCourseId());
+                if (cAttList != null && !cAttList.isEmpty()) {
+                    long cPresent = cAttList.stream().filter(r -> "PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus())).count();
+                    cDto.setTotalSessions(cAttList.size());
+                    cDto.setAttendedSessions((int) cPresent);
+                    cDto.setAttendanceRate(Math.round(((double) cPresent / cAttList.size() * 100.0) * 10.0) / 10.0);
+                } else {
+                    cDto.setTotalSessions(0);
+                    cDto.setAttendedSessions(0);
+                    cDto.setAttendanceRate(null);
+                }
+
                 courseDtos.add(cDto);
             }
         }
@@ -158,6 +175,32 @@ public class StudentRestController {
         dashboard.setAverageGrade(gradeCount > 0 ? String.format("%.1f", gradeSum / gradeCount) : "N/A");
         dashboard.setCourses(courseDtos);
         dashboard.setRecentAssignments(assignmentDtos);
+
+        // Compute genuine student attendance from database records
+        List<AttendanceRecord> attList = attendanceRecordRepository.findByStudentIdOrderBySessionDateDesc(studentId);
+        if (attList != null && !attList.isEmpty()) {
+            long presentCount = attList.stream().filter(r -> "PRESENT".equalsIgnoreCase(r.getStatus())).count();
+            double attPct = (double) presentCount / attList.size() * 100.0;
+            dashboard.setAttendanceRate(String.format("%.1f", attPct));
+        } else {
+            dashboard.setAttendanceRate("N/A");
+        }
+
+        double avgVal = gradeCount > 0 ? (gradeSum / gradeCount) : 0.0;
+        double attVal = 100.0;
+        try {
+            if (dashboard.getAttendanceRate() != null && !"N/A".equals(dashboard.getAttendanceRate())) {
+                attVal = Double.parseDouble(dashboard.getAttendanceRate());
+            }
+        } catch (Exception ignored) {}
+
+        if ((gradeCount > 0 && avgVal < 60.0) || attVal < 75.0) {
+            dashboard.setRiskStatus("AT_RISK");
+        } else if ((gradeCount > 0 && avgVal < 75.0) || attVal < 85.0) {
+            dashboard.setRiskStatus("MODERATE");
+        } else {
+            dashboard.setRiskStatus("GOOD_STANDING");
+        }
 
         return ResponseEntity.ok(dashboard);
     }
@@ -210,6 +253,18 @@ public class StudentRestController {
                     if (gd.getGradeTwo() != -1) { sum += gd.getGradeTwo(); count++; }
                     if (gd.getGradeThree() != -1) { sum += gd.getGradeThree(); count++; }
                     dto.setAverageGrade(count > 0 ? String.format("%.1f", sum / count) : "N/A");
+                }
+
+                List<AttendanceRecord> cAttList = attendanceRecordRepository.findByStudentIdAndCourseId(studentId, scd.getCourseId());
+                if (cAttList != null && !cAttList.isEmpty()) {
+                    long cPresent = cAttList.stream().filter(r -> "PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus())).count();
+                    dto.setTotalSessions(cAttList.size());
+                    dto.setAttendedSessions((int) cPresent);
+                    dto.setAttendanceRate(Math.round(((double) cPresent / cAttList.size() * 100.0) * 10.0) / 10.0);
+                } else {
+                    dto.setTotalSessions(0);
+                    dto.setAttendedSessions(0);
+                    dto.setAttendanceRate(null);
                 }
 
                 list.add(dto);

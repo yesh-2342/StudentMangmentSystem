@@ -1,5 +1,7 @@
 package com.Studentmangment.studentmanagement.dao;
 
+import java.util.List;
+
 import javax.persistence.EntityManager;
 
 import org.hibernate.Session;
@@ -27,12 +29,8 @@ public class AssignmentDetailsDaoImpl implements AssignmentDetailsDao {
 		query.setParameter("detailsId", studentCourseDetailsId);
 		
 		
-		AssignmentDetails s = query.getSingleResult(); 
-		
-		return s;
-		
-		
-		
+		List<AssignmentDetails> results = query.getResultList();
+		return results.isEmpty() ? null : results.get(0);
 	}
 
 	@Override

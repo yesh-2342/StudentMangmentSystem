@@ -9,14 +9,32 @@ import {
   TrendingUp,
   AlertTriangle,
   ArrowRight,
+  ArrowLeft,
+  ExternalLink,
+  BarChart2,
   Sparkles,
   Shield,
   CheckCircle2,
   Calendar,
   Layers,
   ChevronRight,
+  Bot,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+  Cell,
+} from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import studentService from '../../services/studentService';
 import academicService from '../../services/academicService';
@@ -28,6 +46,7 @@ import Button from '../../components/common/Button';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
+import SubjectWiseAttendanceChart from '../../components/academic/SubjectWiseAttendanceChart';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -37,6 +56,8 @@ const StudentDashboard = () => {
   const [facultyAvailabilities, setFacultyAvailabilities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [attendanceViewMode, setAttendanceViewMode] = useState('overall'); // 'overall' | 'subject'
+  const attendanceChartRef = React.useRef(null);
 
   const fetchDashboard = async () => {
     if (!user?.id) return;
@@ -90,63 +111,126 @@ const StudentDashboard = () => {
   if (error) return <ErrorState description={error} onRetry={fetchDashboard} />;
   if (!dashboard) return <EmptyState title="No Dashboard Data" description="No academic information found for your student profile." />;
 
-  // Dynamic calculations
-  const rawGrade = dashboard.averageGrade !== 'N/A' && !isNaN(Number(dashboard.averageGrade))
-    ? Number(dashboard.averageGrade)
-    : 82.5;
-
-  const cgpaValue = ((rawGrade / 100) * 10).toFixed(2);
+  // Dynamic calculations from verified backend records
+  const hasGrade = dashboard.averageGrade && dashboard.averageGrade !== 'N/A' && !isNaN(Number(dashboard.averageGrade));
+  const rawGrade = hasGrade ? Number(dashboard.averageGrade) : null;
+  const cgpaValue = hasGrade ? ((rawGrade / 100) * 10).toFixed(2) : '--';
   const totalTasks = dashboard.totalAssignments || 0;
   const completedTasks = dashboard.completedAssignments || 0;
-  const completionRatio = totalTasks > 0 ? (completedTasks / totalTasks) : 1;
-  const attendanceVal = overview?.studentAttendanceRate || '91.4';
-  const successScore = Math.min(100, Math.round(rawGrade * 0.6 + completionRatio * 100 * 0.4));
+  const completionRatio = totalTasks > 0 ? (completedTasks / totalTasks) : 0;
+  const attendanceVal = dashboard.attendanceRate && dashboard.attendanceRate !== 'N/A'
+    ? `${dashboard.attendanceRate}%`
+    : overview?.studentAttendanceRate ? `${overview.studentAttendanceRate}%` : '--';
+  const successScore = rawGrade !== null ? Math.min(100, Math.round(rawGrade * 0.6 + completionRatio * 100 * 0.4)) : '--';
 
-  const isAtRisk = rawGrade < 60 || completionRatio < 0.5;
-  const isModerate = rawGrade >= 60 && rawGrade < 75;
-  const riskLabel = isAtRisk ? 'At Risk' : isModerate ? 'Moderate' : 'Low Risk';
+  const riskLabel = dashboard.riskStatus === 'AT_RISK'
+    ? 'At Risk'
+    : dashboard.riskStatus === 'MODERATE'
+    ? 'Moderate Risk'
+    : 'Good Standing';
+  const isAtRisk = dashboard.riskStatus === 'AT_RISK';
 
-  // Dynamic Trend Points from Course Grades or Assessments
+  // Real datasets constructed strictly from verified backend records
   const coursesList = dashboard.courses || [];
-  const trendPoints = coursesList.length > 0
-    ? coursesList.map((c, i) => {
-        const grade = c.averageGrade !== 'N/A' && !isNaN(Number(c.averageGrade))
-          ? Number(c.averageGrade)
-          : Math.max(65, Math.min(95, rawGrade + (i % 2 === 0 ? 3 : -2)));
-        return {
-          label: c.code || `C${i + 1}`,
-          name: c.name,
-          score: grade,
-        };
-      })
-    : [
-        { label: 'Sem 1', score: 78 },
-        { label: 'Mid 1', score: 82 },
-        { label: 'Assgn', score: 85 },
-        { label: 'Mid 2', score: 81 },
-        { label: 'Curr', score: rawGrade },
-      ];
 
-  // SVG Chart layout constants
-  const chartWidth = 560;
-  const chartHeight = 180;
-  const paddingX = 40;
-  const paddingY = 25;
-  const minScore = 50;
-  const maxScore = 100;
+  // 1. Real Subject-Wise Academic Performance Data
+  const subjectPerformanceData = coursesList
+    .filter((c) => c.name || c.code)
+    .map((c) => {
+      const g1 = c.gradeOne !== null && c.gradeOne !== undefined && c.gradeOne !== -1 ? Number(c.gradeOne) : null;
+      const g2 = c.gradeTwo !== null && c.gradeTwo !== undefined && c.gradeTwo !== -1 ? Number(c.gradeTwo) : null;
+      const g3 = c.gradeThree !== null && c.gradeThree !== undefined && c.gradeThree !== -1 ? Number(c.gradeThree) : null;
+      const avg = c.averageGrade && c.averageGrade !== 'N/A' && !isNaN(Number(c.averageGrade))
+        ? Number(c.averageGrade)
+        : null;
+      return {
+        code: c.code || `C${c.id}`,
+        name: c.name,
+        teacher: c.teacherName,
+        'Assessment 1': g1,
+        'Assessment 2': g2,
+        'End-Sem': g3,
+        Average: avg,
+      };
+    })
+    .filter((c) => c.Average !== null || c['Assessment 1'] !== null || c['Assessment 2'] !== null || c['End-Sem'] !== null);
 
-  const getCoordinates = (index, score) => {
-    const total = Math.max(trendPoints.length - 1, 1);
-    const x = paddingX + (index / total) * (chartWidth - paddingX * 2);
-    const clampedScore = Math.max(minScore, Math.min(maxScore, score));
-    const y = chartHeight - paddingY - ((clampedScore - minScore) / (maxScore - minScore)) * (chartHeight - paddingY * 2);
-    return { x, y };
-  };
+  // 2. Real Subject-Wise Attendance Data (75% Institutional Threshold)
+  const attendanceChartData = coursesList
+    .map((c) => {
+      const rate = c.attendanceRate !== null && c.attendanceRate !== undefined && !isNaN(Number(c.attendanceRate))
+        ? Number(c.attendanceRate)
+        : (dashboard.attendanceRate && dashboard.attendanceRate !== 'N/A' && !isNaN(Number(dashboard.attendanceRate)) ? Number(dashboard.attendanceRate) : null);
+      return {
+        code: c.code || `C${c.id}`,
+        name: c.name,
+        attendanceRate: rate,
+        attendedSessions: c.attendedSessions || 0,
+        totalSessions: c.totalSessions || 0,
+        isBelowThreshold: rate !== null && rate < 75.0,
+      };
+    })
+    .filter((c) => c.attendanceRate !== null);
 
-  const pathData = trendPoints.reduce((acc, point, index) => {
-    const { x, y } = getCoordinates(index, point.score);
-    return index === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`;
-  }, '');
+  // Aggregated Overall Attendance Metrics & Bar Data
+  const totalAttendedSessionsAll = attendanceChartData.reduce((acc, c) => acc + (c.attendedSessions || 0), 0);
+  const totalConductedSessionsAll = attendanceChartData.reduce((acc, c) => acc + (c.totalSessions || 0), 0);
+  const numericOverallRate = dashboard.attendanceRate && dashboard.attendanceRate !== 'N/A' && !isNaN(Number(dashboard.attendanceRate))
+    ? Number(dashboard.attendanceRate)
+    : (totalConductedSessionsAll > 0 ? Math.round((totalAttendedSessionsAll * 100.0 / totalConductedSessionsAll) * 10) / 10 : (overview?.studentAttendanceRate ? Number(overview.studentAttendanceRate) : 100.0));
+
+  const overallAttendanceBarData = [
+    {
+      label: 'Your Overall Attendance',
+      shortLabel: 'Overall Attendance (Tap)',
+      rate: numericOverallRate,
+      sessionsInfo: totalConductedSessionsAll > 0 ? `${totalAttendedSessionsAll} of ${totalConductedSessionsAll} sessions attended` : 'Aggregated cumulative attendance',
+      fill: numericOverallRate < 75.0 ? '#ef4444' : '#0d9488',
+      isClickable: true,
+      description: 'Tap to view subject-wise attendance breakdown',
+    },
+    {
+      label: '75% Institutional Mandate',
+      shortLabel: 'Required (75%)',
+      rate: 75.0,
+      sessionsInfo: 'Minimum university requirement for exam eligibility',
+      fill: '#64748b',
+      isClickable: false,
+      description: 'Institutional threshold requirement',
+    },
+    {
+      label: '60% Academic Baseline',
+      shortLabel: 'Baseline (60%)',
+      rate: 60.0,
+      sessionsInfo: 'Academic baseline threshold',
+      fill: '#94a3b8',
+      isClickable: false,
+      description: 'Minimum academic baseline',
+    },
+  ];
+
+  // 3. Real Progression Trend across Evaluation Cycles
+  const performanceTrendData = [];
+  if (subjectPerformanceData.length > 0) {
+    const calcCycleAvg = (key) => {
+      const valid = subjectPerformanceData.filter((d) => d[key] !== null && d[key] !== undefined);
+      if (!valid.length) return null;
+      return Math.round((valid.reduce((sum, d) => sum + d[key], 0) / valid.length) * 10) / 10;
+    };
+    const a1 = calcCycleAvg('Assessment 1');
+    const a2 = calcCycleAvg('Assessment 2');
+    const a3 = calcCycleAvg('End-Sem');
+    if (a1 !== null) performanceTrendData.push({ period: 'Internal 1', score: a1, benchmark: 60 });
+    if (a2 !== null) performanceTrendData.push({ period: 'Internal 2', score: a2, benchmark: 60 });
+    if (a3 !== null) performanceTrendData.push({ period: 'End-Sem Exam', score: a3, benchmark: 60 });
+  }
+  if (performanceTrendData.length === 0 && subjectPerformanceData.length > 0) {
+    subjectPerformanceData.forEach((d) => {
+      if (d.Average !== null) {
+        performanceTrendData.push({ period: d.code, score: d.Average, benchmark: 60, name: d.name });
+      }
+    });
+  }
 
   return (
     <div>
@@ -155,14 +239,19 @@ const StudentDashboard = () => {
         subtitle="Digital Academic Performance Monitoring & Institutional Analytics (Project 577)."
         actions={
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <Link to="/student/assistant">
+              <Button variant="primary" size="sm">
+                <Bot size={15} /> Academic Assistant
+              </Button>
+            </Link>
             <Link to="/student/simulator">
               <Button variant="secondary" size="sm">
                 <TrendingUp size={15} /> What-If Simulator
               </Button>
             </Link>
             <Link to="/student/ai-insights">
-              <Button variant="primary" size="sm">
-                <Sparkles size={15} /> AI Academic Insights
+              <Button variant="secondary" size="sm">
+                <Sparkles size={15} /> AI Insights
               </Button>
             </Link>
           </div>
@@ -174,16 +263,27 @@ const StudentDashboard = () => {
         <StatCard
           icon={Award}
           color="blue"
-          value={`${cgpaValue} / 10.0`}
+          value={hasGrade ? `${cgpaValue} / 10.0` : '--'}
           label="Cumulative GPA"
-          subtext={`Avg: ${dashboard.averageGrade !== 'N/A' ? `${dashboard.averageGrade}%` : '82.5%'}`}
+          subtext={hasGrade ? `Average Grade: ${dashboard.averageGrade}%` : 'Pending grade records'}
         />
         <StatCard
           icon={CalendarCheck}
           color="teal"
-          value={`${attendanceVal}%`}
-          label="Attendance Rate"
-          subtext="Institutional Target: ≥ 75.0%"
+          value={attendanceVal}
+          label="Overall Attendance"
+          subtext={attendanceViewMode === 'subject' ? 'Viewing Subject Breakdown 📊' : 'Tap to view Subject Breakdown 📊'}
+          onClick={() => {
+            setAttendanceViewMode('subject');
+            if (attendanceChartRef.current) {
+              attendanceChartRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }}
+          style={{
+            cursor: 'pointer',
+            border: attendanceViewMode === 'subject' ? '2px solid #0d9488' : '1px solid var(--border)',
+            boxShadow: attendanceViewMode === 'subject' ? '0 4px 14px rgba(13, 148, 136, 0.16)' : 'none',
+          }}
         />
         <StatCard
           icon={TrendingUp}
@@ -201,111 +301,327 @@ const StudentDashboard = () => {
         />
       </div>
 
-      {/* 2. Middle Row: Performance Trend Chart + AI Academic Insights Card */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        {/* Performance Trend Chart Card */}
-        <div className="card" style={{ gridColumn: 'span 2' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                Academic Performance Trend
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
-                Coursework progression and assessment evaluations across registered subjects
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span className="badge" style={{ background: '#111111', color: '#ffffff', fontSize: '0.75rem' }}>
-                Current Score: {rawGrade.toFixed(1)}%
+      {/* 2. Academic Performance & Attendance Analytics (Recharts) */}
+      {attendanceViewMode === 'subject' ? (
+        <div ref={attendanceChartRef} style={{ marginBottom: '2rem' }}>
+          <SubjectWiseAttendanceChart
+            courses={dashboard.courses}
+            overallRate={dashboard.attendanceRate}
+            onBackToOverall={() => setAttendanceViewMode('overall')}
+            showBackToOverall={true}
+            headerAction={
+              <button
+                type="button"
+                onClick={() => setAttendanceViewMode('overall')}
+                style={{
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#1e293b',
+                  fontSize: '0.825rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginRight: '0.5rem',
+                }}
+              >
+                <BarChart2 size={14} /> Overall Attendance View
+              </button>
+            }
+          />
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+          
+          {/* Subject-Wise Performance Bar Chart */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Subject-Wise Academic Performance
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                  Course-level evaluations and recorded grades (0–100%)
+                </p>
+              </div>
+              <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                Min Pass Benchmark: 60%
               </span>
             </div>
+
+            {subjectPerformanceData.length > 0 ? (
+              <div style={{ width: '100%', height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={subjectPerformanceData} margin={{ top: 10, right: 15, left: -10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="code" tick={{ fill: '#475569', fontSize: 11 }} interval={0} angle={-15} textAnchor="end" />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 11 }} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload;
+                          return (
+                            <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.65rem 0.85rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', color: '#0f172a', fontSize: '0.825rem' }}>
+                              <strong style={{ display: 'block', marginBottom: '0.2rem', color: '#0f172a' }}>{item.name} ({label})</strong>
+                              {item.teacher && <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.4rem' }}>Instructor: {item.teacher}</div>}
+                              {payload.map((entry, idx) => (
+                                entry.value !== null && entry.value !== undefined && (
+                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', fontSize: '0.8rem', color: entry.color, fontWeight: 600 }}>
+                                    <span>{entry.name}:</span>
+                                    <span>{entry.value}%</span>
+                                  </div>
+                                )
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '6px' }} />
+                    <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: 'Passing (60%)', position: 'insideTopLeft', fill: '#d97706', fontSize: 10 }} />
+                    <Bar dataKey="Average" fill="#2563eb" name="Subject Average" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                No academic performance evaluation records are currently recorded for enrolled courses.
+              </div>
+            )}
+            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4, borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+              Displays recorded academic averages across your registered courses. University regulations benchmark satisfactory performance at ≥ 60.0%.
+            </div>
           </div>
 
-          {/* SVG Monochrome Trend Chart */}
-          <div style={{ width: '100%', overflowX: 'auto' }}>
-            <svg
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              style={{ width: '100%', height: 'auto', display: 'block' }}
-            >
-              {/* Grid Lines */}
-              {[50, 65, 80, 100].map((level) => {
-                const y = chartHeight - paddingY - ((level - minScore) / (maxScore - minScore)) * (chartHeight - paddingY * 2);
-                return (
-                  <g key={level}>
-                    <line
-                      x1={paddingX}
-                      y1={y}
-                      x2={chartWidth - paddingX}
-                      y2={y}
-                      stroke="#e5e5e5"
-                      strokeDasharray="4 4"
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={paddingX - 8}
-                      y={y + 4}
-                      textAnchor="end"
-                      fontSize="10"
-                      fill="#666666"
-                      fontFamily="inherit"
-                    >
-                      {level}%
-                    </text>
-                  </g>
-                );
-              })}
+          {/* Overall Attendance Bar Chart Card with Tap Drilldown */}
+          <div className="card" ref={attendanceChartRef}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <CalendarCheck size={18} color="#0d9488" />
+                  Overall Attendance Overview
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                  Your overall attendance compared to institutional standards (Tap bar to view subjects)
+                </p>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {/* View Mode Toggle Pill Buttons */}
+                <div style={{ display: 'inline-flex', background: 'var(--bg-main, #f1f5f9)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceViewMode('overall')}
+                    style={{
+                      padding: '0.3rem 0.65rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: '#0d9488',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <BarChart2 size={13} /> Overall
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttendanceViewMode('subject')}
+                    style={{
+                      padding: '0.3rem 0.65rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      background: 'transparent',
+                      color: 'var(--text-muted)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <Layers size={13} /> Subject-Wise
+                  </button>
+                </div>
 
-              {/* Trend Polyline */}
-              <path
-                d={pathData}
-                fill="none"
-                stroke="#111111"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+                <span className="badge" style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.75rem' }}>
+                  Threshold: ≥ 75.0%
+                </span>
+              </div>
+            </div>
 
-              {/* Data points */}
-              {trendPoints.map((point, index) => {
-                const { x, y } = getCoordinates(index, point.score);
-                return (
-                  <g key={index}>
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r="4.5"
-                      fill="#ffffff"
-                      stroke="#111111"
-                      strokeWidth="2.5"
+            {/* OVERALL ATTENDANCE VIEW */}
+            <div>
+              <div style={{ width: '100%', height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={overallAttendanceBarData}
+                    margin={{ top: 10, right: 15, left: -10, bottom: 25 }}
+                    onClick={(state) => {
+                      if (state && state.activePayload && state.activePayload.length) {
+                        setAttendanceViewMode('subject');
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="shortLabel" tick={{ fill: '#475569', fontSize: 11, fontWeight: 600 }} interval={0} />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 11 }} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload;
+                          return (
+                            <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.65rem 0.85rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', color: '#0f172a', fontSize: '0.825rem' }}>
+                              <strong style={{ display: 'block', marginBottom: '0.25rem', color: '#0f172a' }}>{item.label}</strong>
+                              <div style={{ color: item.rate >= 75 ? '#0d9488' : '#dc2626', fontWeight: 700, marginBottom: '0.25rem' }}>
+                                Attendance Rate: {item.rate}%
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.35rem' }}>
+                                {item.sessionsInfo}
+                              </div>
+                              <div style={{ fontSize: '0.725rem', color: '#0d9488', fontWeight: 700, borderTop: '1px dashed #e2e8f0', paddingTop: '0.35rem' }}>
+                                👉 Tap bar to navigate to Subject-Wise Breakdown
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
                     />
-                    <text
-                      x={x}
-                      y={y - 10}
-                      textAnchor="middle"
-                      fontSize="10"
-                      fontWeight="700"
-                      fill="#111111"
+                    <ReferenceLine y={75} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: '75% Required', position: 'insideTopLeft', fill: '#dc2626', fontSize: 10, fontWeight: 700 }} />
+                    <Bar
+                      dataKey="rate"
+                      name="Attendance Rate (%)"
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={56}
+                      cursor="pointer"
+                      onClick={() => setAttendanceViewMode('subject')}
                     >
-                      {point.score.toFixed(0)}%
-                    </text>
-                    <text
-                      x={x}
-                      y={chartHeight - 6}
-                      textAnchor="middle"
-                      fontSize="10.5"
-                      fontWeight="600"
-                      fill="#666666"
-                    >
-                      {point.label}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+                      {overallAttendanceBarData.map((entry, index) => (
+                        <Cell
+                          key={`overall-cell-${index}`}
+                          fill={entry.fill}
+                          cursor="pointer"
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Tap to Navigate Callout Banner */}
+              <div
+                onClick={() => setAttendanceViewMode('subject')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setAttendanceViewMode('subject')}
+                style={{
+                  marginTop: '0.85rem',
+                  padding: '0.75rem 1rem',
+                  background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(37, 99, 235, 0.06))',
+                  border: '1.5px dashed #0d9488',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#0d9488', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
+                    👆
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#0f766e', fontSize: '0.875rem' }}>
+                      Tap here to view Subject-Wise Attendance Breakdown
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      Click on the bar above or tap here to inspect detailed rates for all registered subjects
+                    </div>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" style={{ borderColor: '#0d9488', color: '#0d9488', pointerEvents: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span>View Subjects</span>
+                  <ChevronRight size={14} />
+                </Button>
+              </div>
+            </div>
           </div>
+
+        </div>
+      )}
+
+      {/* 3. Performance Trend + AI Insights Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        
+        {/* Performance Trend Chart Card */}
+        <div className="card" style={{ gridColumn: 'span 2' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                Academic Progression Trajectory
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                Performance trend across assessment milestones and continuous evaluations
+              </p>
+            </div>
+            {rawGrade !== null && (
+              <span className="badge" style={{ background: '#0f172a', color: '#ffffff', fontSize: '0.75rem' }}>
+                Cumulative: {rawGrade.toFixed(1)}%
+              </span>
+            )}
+          </div>
+
+          {performanceTrendData.length > 0 ? (
+            <div style={{ width: '100%', height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={performanceTrendData} margin={{ top: 10, right: 15, left: -10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="period" tick={{ fill: '#475569', fontSize: 11 }} />
+                  <YAxis domain={[40, 100]} tick={{ fill: '#475569', fontSize: 11 }} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const item = payload[0].payload;
+                        return (
+                          <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.65rem 0.85rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', color: '#0f172a', fontSize: '0.825rem' }}>
+                            <strong style={{ display: 'block', marginBottom: '0.2rem', color: '#0f172a' }}>{item.name ? `${item.name} (${label})` : label}</strong>
+                            <div style={{ color: '#2563eb', fontWeight: 700 }}>
+                              Score: {payload[0].value}%
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                              Passing Standard: 60%
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <ReferenceLine y={60} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: 'Passing Benchmark (60%)', position: 'insideTopLeft', fill: '#64748b', fontSize: 10 }} />
+                  <Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 5, fill: '#2563eb', stroke: '#ffffff', strokeWidth: 2 }} activeDot={{ r: 7 }} name="Evaluation Score" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Historical assessment trajectory will appear as progressive evaluation marks are entered.
+            </div>
+          )}
           <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            <span>Solid baseline evaluation: High distinction grade threshold at 80%</span>
-            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Trajectory: Stable / Positive</span>
+            <span>Chronological evaluation trend across enrolled semester curriculum</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Trajectory: {isAtRisk ? 'Attention Needed' : 'Stable'}</span>
           </div>
         </div>
 
@@ -499,6 +815,102 @@ const StudentDashboard = () => {
                 justifyContent: 'space-between',
                 cursor: 'pointer',
               }}
+              onClick={() => navigate('/student/todos')}
+            >
+              <div>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>
+                  Smart Academic To-Do List
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Prioritized coursework tasks and custom revision goals
+                </span>
+              </div>
+              <ChevronRight size={16} color="#666666" />
+            </div>
+
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+              onClick={() => navigate('/student/recovery')}
+            >
+              <div>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>
+                  Attendance Recovery Calculator
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Calculate consecutive classes needed or safety margins
+                </span>
+              </div>
+              <ChevronRight size={16} color="#666666" />
+            </div>
+
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+              onClick={() => navigate('/student/study-plan')}
+            >
+              <div>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>
+                  Personalized Study Planner
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Adaptive weekly schedule tailored to your course grades
+                </span>
+              </div>
+              <ChevronRight size={16} color="#666666" />
+            </div>
+
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+              onClick={() => navigate('/student/doubts')}
+            >
+              <div>
+                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>
+                  Ask Doubt / Question
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Directly consult professors on lecture questions
+                </span>
+              </div>
+              <ChevronRight size={16} color="#666666" />
+            </div>
+
+            <div
+              style={{
+                padding: '0.85rem',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
               onClick={() => navigate('/student/simulator')}
             >
               <div>
@@ -531,30 +943,6 @@ const StudentDashboard = () => {
                 </strong>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Book 1-on-1 session with course professors
-                </span>
-              </div>
-              <ChevronRight size={16} color="#666666" />
-            </div>
-
-            <div
-              style={{
-                padding: '0.85rem',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                background: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-              }}
-              onClick={() => navigate('/student/library')}
-            >
-              <div>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>
-                  Access Course Library
-                </strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Browse books and learning supplementary materials
                 </span>
               </div>
               <ChevronRight size={16} color="#666666" />

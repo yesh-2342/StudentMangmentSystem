@@ -85,12 +85,14 @@ public class DemoSecurityConfig extends WebSecurityConfigurerAdapter {
 				"/images/**",
 				"/webjars/**",
 				"/access-denied",
-				"/api/auth/**"
+				"/api/auth/**",
+				"/api/telephony/webhooks/**"
 			).permitAll()
 			.antMatchers("/admin/**", "/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+			.antMatchers("/api/parent-calling/**").hasAnyAuthority("ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/student/**", "/api/students/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/teacher/**", "/api/teachers/**").hasAnyAuthority("ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
-			.antMatchers("/api/interventions/**", "/api/academic/**", "/api/ai/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
+			.antMatchers("/api/interventions/**", "/api/academic/**", "/api/v1/**", "/api/ai/**", "/api/chat/**", "/api/demo/**").hasAnyAuthority("ROLE_STUDENT", "STUDENT", "ROLE_TEACHER", "TEACHER", "ROLE_ADMIN", "ADMIN")
 			.antMatchers("/api/courses/**").authenticated()
 			.anyRequest().authenticated()
 			.and()

@@ -128,6 +128,17 @@ public class AdminRestController {
                 cStat.put("teacherName", c.getTeacher() != null ? c.getTeacher().getFirstName() + " " + c.getTeacher().getLastName() : "Unassigned");
                 cStat.put("studentCount", enrolledCount);
                 cStat.put("averageGrade", courseCount > 0 ? Math.round((courseSum / courseCount) * 10.0) / 10.0 : null);
+
+                List<AttendanceRecord> cRecords = attendanceRecordRepository.findByCourseIdOrderBySessionDateDesc(c.getId());
+                if (cRecords != null && !cRecords.isEmpty()) {
+                    long cPresent = cRecords.stream().filter(r -> "PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus())).count();
+                    cStat.put("attendanceRate", Math.round((cPresent * 100.0 / cRecords.size()) * 10.0) / 10.0);
+                    cStat.put("totalSessions", cRecords.size());
+                } else {
+                    cStat.put("attendanceRate", null);
+                    cStat.put("totalSessions", 0);
+                }
+
                 courseWiseStats.add(cStat);
             }
         }

@@ -13,6 +13,8 @@ public class StudentDashboardDto {
     private int completedAssignments;
     private int pendingAssignments;
     private String averageGrade;
+    private String attendanceRate;
+    private String riskStatus;
     private List<StudentCourseDto> courses;
     private List<StudentAssignmentDto> recentAssignments;
 
@@ -96,6 +98,22 @@ public class StudentDashboardDto {
 
     public void setAverageGrade(String averageGrade) {
         this.averageGrade = averageGrade;
+    }
+
+    public String getAttendanceRate() {
+        return attendanceRate;
+    }
+
+    public void setAttendanceRate(String attendanceRate) {
+        this.attendanceRate = attendanceRate;
+    }
+
+    public String getRiskStatus() {
+        return riskStatus;
+    }
+
+    public void setRiskStatus(String riskStatus) {
+        this.riskStatus = riskStatus;
     }
 
     public List<StudentCourseDto> getCourses() {

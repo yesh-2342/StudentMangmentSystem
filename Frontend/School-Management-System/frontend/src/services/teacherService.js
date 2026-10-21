@@ -58,10 +58,25 @@ export const teacherService = {
 
   getAllTeachers: async () => {
     try {
-      const response = await api.get('/api/admin/teachers');
-      return response.data;
+      const response = await api.get('/api/academic/faculty-members');
+      return Array.isArray(response.data) ? response.data : [];
     } catch {
-      return [];
+      try {
+        const fallback = await api.get('/api/v1/faculty/available-for-consultation');
+        return Array.isArray(fallback.data) ? fallback.data : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  getAvailableFaculty: async () => {
+    try {
+      const response = await api.get('/api/academic/faculty-members');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      const fallback = await api.get('/api/v1/faculty/available-for-consultation');
+      return Array.isArray(fallback.data) ? fallback.data : [];
     }
   },
 

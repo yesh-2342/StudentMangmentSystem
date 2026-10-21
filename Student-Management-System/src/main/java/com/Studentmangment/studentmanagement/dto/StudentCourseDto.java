@@ -11,6 +11,9 @@ public class StudentCourseDto {
     private Integer gradeTwo;
     private Integer gradeThree;
     private String averageGrade;
+    private Integer totalSessions;
+    private Integer attendedSessions;
+    private Double attendanceRate;
 
     public StudentCourseDto() {}
 
@@ -92,5 +95,29 @@ public class StudentCourseDto {
 
     public void setAverageGrade(String averageGrade) {
         this.averageGrade = averageGrade;
+    }
+
+    public Integer getTotalSessions() {
+        return totalSessions;
+    }
+
+    public void setTotalSessions(Integer totalSessions) {
+        this.totalSessions = totalSessions;
+    }
+
+    public Integer getAttendedSessions() {
+        return attendedSessions;
+    }
+
+    public void setAttendedSessions(Integer attendedSessions) {
+        this.attendedSessions = attendedSessions;
+    }
+
+    public Double getAttendanceRate() {
+        return attendanceRate;
+    }
+
+    public void setAttendanceRate(Double attendanceRate) {
+        this.attendanceRate = attendanceRate;
     }
 }

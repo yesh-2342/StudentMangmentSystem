@@ -50,6 +50,15 @@ import interventionService from '../../services/interventionService';
 import studentService from '../../services/studentService';
 import teacherService from '../../services/teacherService';
 import adminService from '../../services/adminService';
+import SmartAcademicTodoList from '../../components/academic/SmartAcademicTodoList';
+import AttendanceRecoveryCalculator from '../../components/academic/AttendanceRecoveryCalculator';
+import PersonalizedStudyPlanner from '../../components/academic/PersonalizedStudyPlanner';
+import DoubtClarificationPortal from '../../components/academic/DoubtClarificationPortal';
+import TeacherClassHealthDashboard from '../../components/academic/TeacherClassHealthDashboard';
+import BulkMarksEntry from '../../components/academic/BulkMarksEntry';
+import AssignmentSubmissionTracker from '../../components/academic/AssignmentSubmissionTracker';
+import SubjectWiseAttendanceChart from '../../components/academic/SubjectWiseAttendanceChart';
+import { Star } from 'lucide-react';
 
 const moduleMeta = {
   ai: {
@@ -99,6 +108,34 @@ const moduleMeta = {
   notifications: {
     title: 'Academic Notifications & Announcements',
     subtitle: 'Stay updated with important course reminders, attendance alerts, and institutional broadcasts.',
+  },
+  todos: {
+    title: 'Smart Academic To-Do List',
+    subtitle: 'Track and prioritize course assignments, exam prep milestones, and custom academic tasks.',
+  },
+  recovery: {
+    title: 'Attendance Recovery Calculator',
+    subtitle: 'Determine consecutive lecture requirements and calculate safety margins to maintain eligibility.',
+  },
+  'study-plan': {
+    title: 'Personalized Adaptive Study Planner',
+    subtitle: 'Weekly timetable allocation algorithm based on course difficulty, grades, and attendance.',
+  },
+  doubts: {
+    title: 'Doubt & Clarification Requests',
+    subtitle: 'Submit subject inquiries to course faculty and track verified pedagogical solutions.',
+  },
+  'class-health': {
+    title: 'Teacher Class Health Dashboard',
+    subtitle: 'Multi-dimensional cohort health score evaluating marks, attendance, and assignment punctuality.',
+  },
+  'bulk-marks': {
+    title: 'Bulk Marks & Grade Entry',
+    subtitle: 'Spreadsheet-style entry for Midterm, Coursework, and Final Exam marks with automated student alerts.',
+  },
+  submissions: {
+    title: 'Assignment Submission Tracker',
+    subtitle: 'Class-wide coursework submission verification and real-time status management.',
   },
   'academic-data': {
     title: 'Academic Data Management',
@@ -190,6 +227,8 @@ const AcademicModulePage = ({ module }) => {
   const [reportsData, setReportsData] = useState(null);
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [facultyLoading, setFacultyLoading] = useState(false);
+  const [facultyError, setFacultyError] = useState(null);
   const [students, setStudents] = useState([]);
 
   // Search / Filter States
@@ -197,6 +236,8 @@ const AcademicModulePage = ({ module }) => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [riskFilter, setRiskFilter] = useState('');
+  const [resourceBookmarkFilter, setResourceBookmarkFilter] = useState('ALL');
+  const [attendanceSubTab, setAttendanceSubTab] = useState('SESSION');
 
   // Form States
   const [interventionForm, setInterventionForm] = useState({
@@ -300,7 +341,7 @@ const AcademicModulePage = ({ module }) => {
       const [ov, crs, tchs, stds] = await Promise.allSettled([
         academicService.getOverview(),
         role === 'STUDENT' ? studentService.getCourses(user.id) : (role === 'TEACHER' ? teacherService.getCourses(user.id) : adminService.getCourses()),
-        role === 'ADMIN' ? adminService.getTeachers() : (teacherService.getAllTeachers ? teacherService.getAllTeachers() : Promise.resolve([])),
+        role === 'ADMIN' ? adminService.getTeachers() : academicService.getFacultyMembers(),
         role === 'ADMIN' ? adminService.getStudents() : (role === 'TEACHER' ? teacherService.getStudents(user.id) : Promise.resolve([])),
       ]);
 
@@ -345,12 +386,25 @@ const AcademicModulePage = ({ module }) => {
         const res = await academicService.getAvailability();
         setAvailabilityList(Array.isArray(res) ? res : []);
       } else if (module === 'consultations') {
-        const [cList, aList] = await Promise.all([
-          academicService.getConsultations(),
-          academicService.getAvailability(),
-        ]);
-        setConsultations(Array.isArray(cList) ? cList : []);
-        setAvailabilityList(Array.isArray(aList) ? aList : []);
+        setFacultyLoading(true);
+        setFacultyError(null);
+        try {
+          const [cList, aList, fList] = await Promise.all([
+            academicService.getConsultations(),
+            academicService.getAvailability(),
+            academicService.getFacultyMembers(),
+          ]);
+          setConsultations(Array.isArray(cList) ? cList : []);
+          setAvailabilityList(Array.isArray(aList) ? aList : []);
+          if (Array.isArray(fList) && fList.length > 0) {
+            setTeachers(fList);
+          }
+        } catch (fErr) {
+          console.error('Failed to load consultation data:', fErr);
+          setFacultyError('Failed to load available faculty members. Please retry.');
+        } finally {
+          setFacultyLoading(false);
+        }
       } else if (module === 'library') {
         const res = await academicService.getLibrary(searchQuery, categoryFilter);
         setLibraryBooks(Array.isArray(res) ? res : []);
@@ -641,15 +695,6 @@ const AcademicModulePage = ({ module }) => {
           }));
         }
 
-        // If database has no enrolled students at all for this course, provide demo students so taking attendance is always functional
-        if (initialStudents.length === 0) {
-          initialStudents = [
-            { studentId: 1, rollNo: 'std_01', studentName: 'Alice Smith', email: 'alice@sms.edu', status: 'PRESENT', remarks: '' },
-            { studentId: 2, rollNo: 'std_02', studentName: 'Bob Johnson', email: 'bob@sms.edu', status: 'PRESENT', remarks: '' },
-            { studentId: 3, rollNo: 'std_03', studentName: 'Charlie Brown', email: 'charlie@sms.edu', status: 'PRESENT', remarks: '' },
-            { studentId: 4, rollNo: 'std_04', studentName: 'David Lee', email: 'david@sms.edu', status: 'PRESENT', remarks: '' },
-          ];
-        }
       }
 
       // Check if attendance already exists for this course, date, and session period
@@ -1568,54 +1613,115 @@ const AcademicModulePage = ({ module }) => {
   );
 
   // 5. Consultations
+  const formatAppointmentTime = (dateStr) => {
+    if (!dateStr) return '--';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const renderConsultations = () => (
     <div>
       {role === 'STUDENT' && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-main)' }}>
-            Schedule an Academic Consultation
-          </h3>
+        <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                Schedule an Academic Consultation
+              </h3>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                Book a 1-on-1 office hours advising session with your course faculty instructor
+              </p>
+            </div>
+            {facultyError && (
+              <Button size="sm" variant="outline" type="button" onClick={() => loadModuleData()}>
+                Retry Loading Faculty
+              </Button>
+            )}
+          </div>
+
           <form onSubmit={handleBookConsultation}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Select Faculty Instructor *</label>
+                <label className="form-label">Select Faculty Instructor *</label>
                 <select
+                  className="form-select"
                   value={consultationForm.teacherId}
                   onChange={(e) => setConsultationForm({ ...consultationForm, teacherId: e.target.value })}
                   required
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)' }}
+                  disabled={facultyLoading || teachers.length === 0}
                 >
-                  <option value="">Choose faculty member...</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>
-                  ))}
+                  {facultyLoading ? (
+                    <option value="">Loading available faculty members...</option>
+                  ) : teachers.length === 0 ? (
+                    <option value="">No faculty members are currently available for consultation. Please try again later.</option>
+                  ) : (
+                    <>
+                      <option value="">Choose faculty member...</option>
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name || `${t.firstName} ${t.lastName}`} — {t.department || 'Faculty'}{t.officeLocation ? ` (${t.officeLocation})` : ''}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
+                {facultyError ? (
+                  <div style={{ marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--error)' }}>
+                    {facultyError}
+                  </div>
+                ) : !facultyLoading && teachers.length === 0 ? (
+                  <div style={{ marginTop: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    No faculty members are currently available for consultation. Please try again later.
+                  </div>
+                ) : null}
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Appointment Date & Time *</label>
+                <label className="form-label">Appointment Date &amp; Time *</label>
                 <input
                   type="datetime-local"
+                  className="form-input"
+                  min={new Date().toISOString().slice(0, 16)}
                   value={consultationForm.requestedAt}
                   onChange={(e) => setConsultationForm({ ...consultationForm, requestedAt: e.target.value })}
                   required
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)' }}
                 />
+                <span style={{ display: 'block', marginTop: '0.3rem', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Choose an upcoming date and time slot
+                </span>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Consultation Topic / Question</label>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Consultation Topic / Question *</label>
                 <input
                   type="text"
-                  placeholder="e.g. Help with Dynamic Programming algorithm"
+                  className="form-input"
+                  placeholder="e.g. Doubts on Dynamic Programming, mid-term grade improvement, or lab viva preparation"
                   value={consultationForm.studentNotes}
                   onChange={(e) => setConsultationForm({ ...consultationForm, studentNotes: e.target.value })}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card-bg)' }}
+                  required
                 />
               </div>
             </div>
 
-            <Button type="submit" loading={actionLoading} variant="primary">
+            <Button
+              type="submit"
+              loading={actionLoading}
+              variant="primary"
+              disabled={actionLoading || !consultationForm.teacherId || !consultationForm.requestedAt || !consultationForm.studentNotes?.trim()}
+            >
               Submit Appointment Request
             </Button>
           </form>
@@ -1623,33 +1729,62 @@ const AcademicModulePage = ({ module }) => {
       )}
 
       <div className="card">
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-main)' }}>
-          {role === 'STUDENT' ? 'My Consultation Bookings' : (role === 'TEACHER' ? 'Student Consultation Requests' : 'All Consultations')}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+              {role === 'STUDENT' ? 'My Consultation Bookings' : (role === 'TEACHER' ? 'Student Consultation Requests' : 'All Consultations')}
+            </h3>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              {role === 'STUDENT' ? 'Review status of your scheduled mentoring and advising sessions' : 'Manage student advising requests'}
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={async () => {
+            const res = await academicService.getConsultations();
+            setConsultations(Array.isArray(res) ? res : []);
+          }}>
+            Refresh Bookings
+          </Button>
+        </div>
 
         <DataTable
           columns={[
             ...(role !== 'STUDENT' ? [{ key: 'studentName', header: 'Student' }] : []),
-            { key: 'teacherName', header: 'Faculty Member' },
-            { key: 'requestedAt', header: 'Appointment Time' },
+            {
+              key: 'teacherName',
+              header: 'Faculty Member',
+              render: (v) => <strong>{v || 'Assigned Faculty'}</strong>,
+            },
+            {
+              key: 'requestedAt',
+              header: 'Appointment Time',
+              render: (v) => formatAppointmentTime(v),
+            },
             {
               key: 'status',
               header: 'Status',
               render: (v) => (
                 <span className={`badge ${v === 'CONFIRMED' ? 'badge-success' : v === 'COMPLETED' ? 'badge-info' : v === 'CANCELLED' ? 'badge-error' : 'badge-warning'}`}>
-                  {v}
+                  {v || 'PENDING'}
                 </span>
               ),
             },
-            { key: 'studentNotes', header: 'Student Topic' },
-            { key: 'instructions', header: 'Meeting Instructions' },
+            {
+              key: 'studentNotes',
+              header: 'Consultation Topic',
+              render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{v || '--'}</span>,
+            },
+            {
+              key: 'instructions',
+              header: 'Meeting Instructions',
+              render: (v) => <span>{v || 'Instructions pending faculty confirmation.'}</span>,
+            },
             ...(role === 'TEACHER'
               ? [
                   {
                     key: 'id',
                     header: 'Manage Appointment',
                     render: (_, row) => (
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {row.status === 'PENDING' && (
                           <Button size="sm" variant="primary" onClick={() => handleUpdateConsultationStatus(row.id, 'CONFIRMED', 'Confirmed. Please meet at my cabin.')}>
                             Confirm
@@ -1672,7 +1807,7 @@ const AcademicModulePage = ({ module }) => {
               : []),
           ]}
           data={consultations}
-          emptyMessage="No consultation requests recorded."
+          emptyMessage={role === 'STUDENT' ? "No consultation bookings recorded yet. Use the form above to book a session with your instructor." : "No consultation requests recorded."}
         />
       </div>
     </div>
@@ -1879,12 +2014,92 @@ const AcademicModulePage = ({ module }) => {
       )}
 
       <div className="card">
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-main)' }}>
-          Course Learning Resources & Handouts
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.25rem', color: 'var(--text-main)' }}>
+              Course Learning Resources & Handouts
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Access syllabus files, reference notes, and bookmark materials for quick study retrieval.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setResourceBookmarkFilter('ALL')}
+              style={{
+                padding: '0.4rem 0.85rem',
+                borderRadius: '6px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                border: resourceBookmarkFilter === 'ALL' ? '1px solid #111827' : '1px solid #e5e7eb',
+                background: resourceBookmarkFilter === 'ALL' ? '#111827' : '#ffffff',
+                color: resourceBookmarkFilter === 'ALL' ? '#ffffff' : '#4b5563',
+                cursor: 'pointer',
+              }}
+            >
+              All Handouts
+            </button>
+            <button
+              type="button"
+              onClick={() => setResourceBookmarkFilter('BOOKMARKED')}
+              style={{
+                padding: '0.4rem 0.85rem',
+                borderRadius: '6px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                border: resourceBookmarkFilter === 'BOOKMARKED' ? '1px solid #f59e0b' : '1px solid #e5e7eb',
+                background: resourceBookmarkFilter === 'BOOKMARKED' ? '#f59e0b' : '#ffffff',
+                color: resourceBookmarkFilter === 'BOOKMARKED' ? '#ffffff' : '#4b5563',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <Star size={14} fill={resourceBookmarkFilter === 'BOOKMARKED' ? '#ffffff' : 'none'} />
+              Bookmarked Handouts
+            </button>
+          </div>
+        </div>
 
         <DataTable
           columns={[
+            {
+              key: 'bookmark',
+              header: 'Bookmark',
+              render: (_, row) => (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await academicService.toggleBookmarkResource(row.id);
+                      setLearningResources((prev) =>
+                        prev.map((r) =>
+                          r.id === row.id ? { ...r, isBookmarked: !r.isBookmarked } : r
+                        )
+                      );
+                      showNotification(row.isBookmarked ? 'Bookmark removed.' : 'Resource bookmarked!');
+                    } catch (e) {
+                      console.error('Bookmark toggle error:', e);
+                    }
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: row.isBookmarked ? '#f59e0b' : '#9ca3af',
+                    padding: '0.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={row.isBookmarked ? 'Remove bookmark' : 'Bookmark this resource'}
+                >
+                  <Star size={18} fill={row.isBookmarked ? '#f59e0b' : 'none'} />
+                </button>
+              ),
+            },
             { key: 'courseCode', header: 'Subject Code' },
             { key: 'title', header: 'Resource Title' },
             { key: 'description', header: 'Topic Description' },
@@ -1899,8 +2114,8 @@ const AcademicModulePage = ({ module }) => {
               ),
             },
           ]}
-          data={learningResources}
-          emptyMessage="No learning resources uploaded for this course yet."
+          data={learningResources.filter((r) => (resourceBookmarkFilter === 'BOOKMARKED' ? r.isBookmarked : true))}
+          emptyMessage={resourceBookmarkFilter === 'BOOKMARKED' ? 'No bookmarked learning resources found.' : 'No learning resources uploaded for this course yet.'}
         />
       </div>
     </div>
@@ -1908,9 +2123,50 @@ const AcademicModulePage = ({ module }) => {
 
   // 8. Linways-style Class Attendance Monitor (Teacher, Admin, Student)
   const renderAttendance = () => (
-    <div>
-      {(role === 'TEACHER' || role === 'ADMIN') && (
-        <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Sub-tab Navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+        <button
+          type="button"
+          onClick={() => setAttendanceSubTab('SESSION')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: attendanceSubTab === 'SESSION' ? '1px solid #111827' : '1px solid #e5e7eb',
+            background: attendanceSubTab === 'SESSION' ? '#111827' : '#ffffff',
+            color: attendanceSubTab === 'SESSION' ? '#ffffff' : '#4b5563',
+          }}
+        >
+          {role === 'STUDENT' ? 'My Session Logs' : 'Linways Roll Call'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setAttendanceSubTab('RECOVERY')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: attendanceSubTab === 'RECOVERY' ? '1px solid #0f172a' : '1px solid #e5e7eb',
+            background: attendanceSubTab === 'RECOVERY' ? '#0f172a' : '#ffffff',
+            color: attendanceSubTab === 'RECOVERY' ? '#ffffff' : '#4b5563',
+          }}
+        >
+          Attendance Recovery Calculator
+        </button>
+      </div>
+
+      {attendanceSubTab === 'RECOVERY' ? (
+        <AttendanceRecoveryCalculator studentId={role === 'STUDENT' ? user?.id : null} />
+      ) : (
+        <div>
+          {(role === 'TEACHER' || role === 'ADMIN') && (
+            <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
           {/* Header & Title */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.85rem' }}>
             <div>
@@ -2262,7 +2518,9 @@ const AcademicModulePage = ({ module }) => {
                   {filteredRoster.length === 0 ? (
                     <tr>
                       <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                        No students found matching your search.
+                        {attendanceRoster.length === 0
+                          ? 'No students currently enrolled in this course or section.'
+                          : 'No students found matching your search.'}
                       </td>
                     </tr>
                   ) : (
@@ -2498,6 +2756,16 @@ const AcademicModulePage = ({ module }) => {
         </div>
       )}
 
+      {/* 4.5. STUDENT SUBJECT-WISE ATTENDANCE CHART */}
+      {role === 'STUDENT' && (
+        <SubjectWiseAttendanceChart
+          courses={courses}
+          overallRate={overview?.studentAttendanceRate || overview?.attendancePercent}
+          showBackToOverall={false}
+          showLinkToLogs={false}
+        />
+      )}
+
       {/* 5. SESSION ATTENDANCE LOGS REGISTER */}
       <div className="card">
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-main)' }}>
@@ -2549,6 +2817,8 @@ const AcademicModulePage = ({ module }) => {
           emptyMessage="No attendance sessions recorded yet."
         />
       </div>
+        </div>
+      )}
     </div>
   );
 
@@ -2622,9 +2892,26 @@ const AcademicModulePage = ({ module }) => {
       )}
 
       <div className="card">
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-main)' }}>
-          Active Notifications & Alerts
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+            Active Notifications &amp; Progress Alerts
+          </h3>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              try {
+                await academicService.markAllNotificationsRead();
+                setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+                showNotification('All notifications marked as read.');
+              } catch (e) {
+                console.error('Error marking all read:', e);
+              }
+            }}
+          >
+            Mark All as Read
+          </Button>
+        </div>
 
         {notifications && notifications.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -2808,23 +3095,23 @@ const AcademicModulePage = ({ module }) => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div style={{ padding: '0.85rem', borderRadius: '8px', background: '#fafafa', border: '1px solid var(--border)' }}>
+              <div style={{ padding: '0.85rem', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Current Average</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-                  {simResult?.currentAverage !== undefined ? `${simResult.currentAverage.toFixed(1)}%` : '74.5%'}
+                  {simResult?.currentAverage !== undefined ? `${simResult.currentAverage.toFixed(1)}%` : '--'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   Standing: <span className="badge badge-gray">{simResult?.currentRiskLevel || 'NORMAL'}</span>
                 </div>
               </div>
 
-              <div style={{ padding: '0.85rem', borderRadius: '8px', background: '#fafafa', border: '1px solid var(--border)' }}>
+              <div style={{ padding: '0.85rem', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-main)', textTransform: 'uppercase', fontWeight: 700 }}>Projected Average</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-                  {simResult?.projectedAverage !== undefined ? `${simResult.projectedAverage.toFixed(1)}%` : '86.2%'}
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.2rem' }}>
+                  {simResult?.projectedAverage !== undefined ? `${simResult.projectedAverage.toFixed(1)}%` : '--'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Projected: <span className="badge" style={{ background: '#111111', color: '#ffffff' }}>{simResult?.projectedRiskLevel || 'GOOD STANDING'}</span>
+                  Projected: <span className="badge badge-info">{simResult?.projectedRiskLevel || 'READY TO SIMULATE'}</span>
                 </div>
               </div>
             </div>
@@ -2931,8 +3218,8 @@ const AcademicModulePage = ({ module }) => {
       <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
         <StatCard icon={BookOpen} value={overview?.enrolledCourses || overview?.assignedCourses || overview?.totalCourses || 0} label="Courses in Scope" />
         <StatCard icon={Users} color="purple" value={overview?.assignedStudents || overview?.totalStudents || 1} label="Student Cohort" />
-        <StatCard icon={FileBarChart} color="green" value={overview?.attendancePercent !== undefined ? `${overview.attendancePercent}%` : '88.4%'} label="Average Attendance" />
-        <StatCard icon={Award} color="orange" value={overview?.gpa ? `${overview.gpa.toFixed(1)}%` : '82.1%'} label="Mean Assessment Mark" />
+        <StatCard icon={FileBarChart} color="green" value={overview?.attendancePercent !== undefined && overview?.attendancePercent !== null ? `${overview.attendancePercent}%` : '--'} label="Average Attendance" />
+        <StatCard icon={Award} color="amber" value={overview?.gpa !== undefined && overview?.gpa !== null ? `${overview.gpa.toFixed(1)}%` : '--'} label="Mean Assessment Mark" />
       </div>
 
       <div className="card">
@@ -2959,12 +3246,24 @@ const AcademicModulePage = ({ module }) => {
             {
               key: 'average',
               header: 'Average Mark',
-              render: (v) => <strong style={{ color: 'var(--primary)' }}>{v !== undefined ? `${v}%` : '85%'}</strong>,
+              render: (v) => <strong style={{ color: 'var(--primary)' }}>{v !== undefined && v !== null ? `${v}%` : '--'}</strong>,
             },
             {
               key: 'status',
               header: 'Standing',
-              render: () => <span className="badge badge-success">Good Standing</span>,
+              render: (row) => {
+                const avg = Number(row?.average);
+                if (isNaN(avg) || row?.average === undefined || row?.average === null) {
+                  return <span className="badge badge-gray">Pending Marks</span>;
+                }
+                return avg >= 75 ? (
+                  <span className="badge badge-success">Good Standing</span>
+                ) : avg >= 60 ? (
+                  <span className="badge badge-warning">Moderate</span>
+                ) : (
+                  <span className="badge badge-danger">At Risk</span>
+                );
+              },
             },
           ]}
           data={courses}
@@ -3021,8 +3320,27 @@ const AcademicModulePage = ({ module }) => {
         return renderSimulator();
       case 'reports':
         return renderReports();
+      case 'todos':
+        return <SmartAcademicTodoList />;
+      case 'recovery':
+        return <AttendanceRecoveryCalculator studentId={role === 'STUDENT' ? user?.id : null} />;
+      case 'study-plan':
+        return <PersonalizedStudyPlanner />;
+      case 'doubts':
+        return <DoubtClarificationPortal courses={courses} />;
+      case 'class-health':
+        return <TeacherClassHealthDashboard />;
+      case 'bulk-marks':
+        return <BulkMarksEntry courses={courses} />;
+      case 'submissions':
+        return <AssignmentSubmissionTracker />;
       case 'assessments':
-        return renderReports();
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <AssignmentSubmissionTracker />
+            {role !== 'STUDENT' && <BulkMarksEntry courses={courses} />}
+          </div>
+        );
       case 'academic-data':
       case 'settings':
         return renderAdminSettings();

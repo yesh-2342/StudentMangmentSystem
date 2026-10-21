@@ -7,4 +7,6 @@ public interface AssignmentService {
     void save(Assignment assignment);
 
     void deleteAssignmentById(int id);
+
+    Assignment findAssignmentById(int id);
 }

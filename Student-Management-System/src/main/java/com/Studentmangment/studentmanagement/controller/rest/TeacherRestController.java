@@ -147,6 +147,48 @@ public class TeacherRestController {
                     }
                 }
             }
+
+            // Compute real average grade across enrolled cohort
+            double gradeSum = 0;
+            int gradeCount = 0;
+            int cCompletedSubmissions = 0;
+            if (students != null) {
+                for (Student s : students) {
+                    StudentCourseDetails scd = studentCourseDetailsService.findByStudentAndCourseId(s.getId(), c.getId());
+                    if (scd != null) {
+                        if (scd.getGradeDetails() != null) {
+                            GradeDetails gd = scd.getGradeDetails();
+                            if (gd.getGradeOne() != -1) { gradeSum += gd.getGradeOne(); gradeCount++; }
+                            if (gd.getGradeTwo() != -1) { gradeSum += gd.getGradeTwo(); gradeCount++; }
+                            if (gd.getGradeThree() != -1) { gradeSum += gd.getGradeThree(); gradeCount++; }
+                        }
+                        if (scd.getAssignments() != null) {
+                            for (Assignment a : scd.getAssignments()) {
+                                AssignmentDetails ad = assignmentDetailsService.findByAssignmentAndStudentCourseDetailsId(a.getId(), scd.getId());
+                                if (ad != null && ad.getIsDone() == 1) {
+                                    cCompletedSubmissions++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            cDto.setAverageGrade(gradeCount > 0 ? String.format("%.1f", gradeSum / gradeCount) : "N/A");
+            cDto.setCompletedAssignments(cCompletedSubmissions);
+
+            // Compute real course attendance rate
+            List<AttendanceRecord> cAttList = attendanceRecordRepository.findByCourseIdOrderBySessionDateDesc(c.getId());
+            if (cAttList != null && !cAttList.isEmpty()) {
+                long cPresent = cAttList.stream().filter(r -> "PRESENT".equalsIgnoreCase(r.getStatus()) || "LATE".equalsIgnoreCase(r.getStatus())).count();
+                cDto.setTotalSessions(cAttList.size());
+                cDto.setAttendedSessions((int) cPresent);
+                cDto.setAttendanceRate(Math.round(((double) cPresent / cAttList.size() * 100.0) * 10.0) / 10.0);
+            } else {
+                cDto.setTotalSessions(0);
+                cDto.setAttendedSessions(0);
+                cDto.setAttendanceRate(null);
+            }
+
             courseDtos.add(cDto);
         }
 

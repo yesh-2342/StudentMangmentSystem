@@ -18,7 +18,24 @@ import {
   MapPin,
   Save,
   CheckCircle,
+  Bot,
+  Activity,
+  Award,
+  FileCheck,
+  HelpCircle,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+  Cell,
+} from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import teacherService from '../../services/teacherService';
 import academicService from '../../services/academicService';
@@ -32,34 +49,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
 
-// Clearly labelled demo classes populated with fictional students for demonstration
-const DEMO_CLASSES = [
-  {
-    id: -101,
-    name: 'Demo Class A — CS101: Introduction to Computer Systems (Demo Lab)',
-    code: 'CS101-DEMO',
-    isDemo: true,
-    students: [
-      { id: -101, name: 'Alex Morgan', rollNo: 'DEMO-01', email: 'alex.demo@sms.edu' },
-      { id: -102, name: 'Bella Chen', rollNo: 'DEMO-02', email: 'bella.demo@sms.edu' },
-      { id: -103, name: 'Carlos Rivera', rollNo: 'DEMO-03', email: 'carlos.demo@sms.edu' },
-      { id: -104, name: 'Diana Prince', rollNo: 'DEMO-04', email: 'diana.demo@sms.edu' },
-      { id: -105, name: 'Ethan Hunt', rollNo: 'DEMO-05', email: 'ethan.demo@sms.edu' },
-    ],
-  },
-  {
-    id: -202,
-    name: 'Demo Class B — DS202: Data Structures & Algorithms (Demo Tutorial)',
-    code: 'DS202-DEMO',
-    isDemo: true,
-    students: [
-      { id: -201, name: 'Fiona Gallagher', rollNo: 'DEMO-06', email: 'fiona.demo@sms.edu' },
-      { id: -202, name: 'George Clark', rollNo: 'DEMO-07', email: 'george.demo@sms.edu' },
-      { id: -203, name: 'Hannah Abbott', rollNo: 'DEMO-08', email: 'hannah.demo@sms.edu' },
-      { id: -204, name: 'Ian Malcolm', rollNo: 'DEMO-09', email: 'ian.demo@sms.edu' },
-    ],
-  },
-];
+
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
@@ -82,9 +72,9 @@ const TeacherDashboard = () => {
   const [savingAvailability, setSavingAvailability] = useState(false);
   const [availabilitySuccess, setAvailabilitySuccess] = useState(null);
 
-  // 2. Easy Attendance Modal State
+  // 2. Attendance Modal State
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState(String(DEMO_CLASSES[0].id));
+  const [selectedClassId, setSelectedClassId] = useState('');
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceRoster, setAttendanceRoster] = useState([]);
   const [savingAttendance, setSavingAttendance] = useState(false);
@@ -104,6 +94,9 @@ const TeacherDashboard = () => {
 
       if (dashData.status === 'fulfilled') {
         setDashboard(dashData.value);
+        if (dashData.value?.courses?.length > 0 && !selectedClassId) {
+          setSelectedClassId(String(dashData.value.courses[0].id));
+        }
       }
       if (atRiskData.status === 'fulfilled' && Array.isArray(atRiskData.value)) {
         setAtRiskCount(atRiskData.value.length);
@@ -136,21 +129,14 @@ const TeacherDashboard = () => {
   // Update Roster when Selected Class changes in Attendance Modal
   useEffect(() => {
     const classIdNum = Number(selectedClassId);
-    const demoFound = DEMO_CLASSES.find((c) => c.id === classIdNum);
+    if (!classIdNum) {
+      setAttendanceRoster([]);
+      return;
+    }
 
-    if (demoFound) {
-      setAttendanceRoster(
-        demoFound.students.map((s) => ({
-          studentId: s.id,
-          studentName: s.name,
-          rollNo: s.rollNo,
-          status: 'PRESENT',
-        }))
-      );
-    } else if (dashboard?.courses) {
+    if (dashboard?.courses) {
       const courseFound = dashboard.courses.find((c) => c.id === classIdNum);
       if (courseFound) {
-        // Fetch real students or create roster entries for enrolled students
         teacherService.getStudents(user.id).then((allStudents) => {
           if (Array.isArray(allStudents) && allStudents.length > 0) {
             setAttendanceRoster(
@@ -162,16 +148,10 @@ const TeacherDashboard = () => {
               }))
             );
           } else {
-            setAttendanceRoster([
-              { studentId: 1, studentName: 'Alice Smith', rollNo: 'std_01', status: 'PRESENT' },
-              { studentId: 2, studentName: 'Bob Johnson', rollNo: 'std_02', status: 'PRESENT' },
-            ]);
+            setAttendanceRoster([]);
           }
         }).catch(() => {
-          setAttendanceRoster([
-            { studentId: 1, studentName: 'Alice Smith', rollNo: 'std_01', status: 'PRESENT' },
-            { studentId: 2, studentName: 'Bob Johnson', rollNo: 'std_02', status: 'PRESENT' },
-          ]);
+          setAttendanceRoster([]);
         });
       }
     }
@@ -223,14 +203,9 @@ const TeacherDashboard = () => {
     setAttendanceSuccess(null);
 
     const classIdNum = Number(selectedClassId);
-    const demoFound = DEMO_CLASSES.find((c) => c.id === classIdNum);
-    const isDemo = Boolean(demoFound);
-
     const payload = {
       courseId: classIdNum,
       sessionDate: attendanceDate,
-      isDemo: isDemo,
-      demoCourseName: demoFound ? demoFound.name : null,
       records: attendanceRoster.map((s) => ({
         studentId: s.studentId,
         studentName: s.studentName,
@@ -258,17 +233,59 @@ const TeacherDashboard = () => {
   if (error) return <ErrorState description={error} onRetry={fetchDashboard} />;
   if (!dashboard) return <EmptyState title="No Dashboard Data" description="No faculty records located." />;
 
+  const teacherCourses = dashboard?.courses || [];
+
+  // 1. Subject-Wise Average Marks for Teacher's Assigned Courses
+  const coursePerformanceChartData = teacherCourses
+    .map((c) => {
+      const avg = c.averageGrade && c.averageGrade !== 'N/A' && !isNaN(Number(c.averageGrade))
+        ? Number(c.averageGrade)
+        : null;
+      return {
+        code: c.code || `C${c.id}`,
+        name: c.name,
+        averageGrade: avg,
+        enrolledStudents: c.totalAssignments || 0,
+        completedSubmissions: c.completedAssignments || 0,
+      };
+    })
+    .filter((c) => c.averageGrade !== null);
+
+  // 2. Class Attendance Percentage by Assigned Course
+  const courseAttendanceChartData = teacherCourses
+    .map((c) => {
+      const rate = c.attendanceRate !== null && c.attendanceRate !== undefined && !isNaN(Number(c.attendanceRate))
+        ? Number(c.attendanceRate)
+        : null;
+      return {
+        code: c.code || `C${c.id}`,
+        name: c.name,
+        attendanceRate: rate,
+        totalSessions: c.totalSessions || 0,
+        attendedSessions: c.attendedSessions || 0,
+        isBelowBenchmark: rate !== null && rate < 75.0,
+      };
+    })
+    .filter((c) => c.attendanceRate !== null);
+
   return (
     <div>
       <PageHeader
         title={`Welcome, Professor ${dashboard.firstName || dashboard.teacherName || 'Faculty'}!`}
         subtitle="Manage assigned courses, record class attendance, update office hours, and review assignments."
         actions={
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
             <Button
               variant="primary"
               size="sm"
-              style={{ fontWeight: 700 }}
+              onClick={() => navigate('/teacher/assistant')}
+            >
+              <Bot size={16} /> Academic Assistant
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              style={{ fontWeight: 650 }}
               onClick={() => {
                 setAttendanceModalOpen(true);
                 setAttendanceSuccess(null);
@@ -377,6 +394,81 @@ const TeacherDashboard = () => {
           value={dashboard.upcomingAssignments}
           label="Upcoming Due Dates"
         />
+      </div>
+
+      {/* Faculty Quick Management Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <div
+          className="card"
+          style={{ padding: '1.25rem', cursor: 'pointer', transition: 'all 0.15s ease', border: '1px solid var(--border)' }}
+          onClick={() => navigate('/teacher/class-health')}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#111827')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
+            <span style={{ padding: '0.4rem', borderRadius: '6px', background: '#f0fdf4', color: '#16a34a' }}>
+              <Activity size={18} />
+            </span>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>Class Health Dashboard</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Monitor cohort health metrics, average grades, and at-risk student concentrations.
+          </p>
+        </div>
+
+        <div
+          className="card"
+          style={{ padding: '1.25rem', cursor: 'pointer', transition: 'all 0.15s ease', border: '1px solid var(--border)' }}
+          onClick={() => navigate('/teacher/bulk-marks')}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#111827')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
+            <span style={{ padding: '0.4rem', borderRadius: '6px', background: '#fef3c7', color: '#d97706' }}>
+              <Award size={18} />
+            </span>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>Bulk Marks Entry</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Batch input Midterm, Coursework, and Final marks with automated student progress alerts.
+          </p>
+        </div>
+
+        <div
+          className="card"
+          style={{ padding: '1.25rem', cursor: 'pointer', transition: 'all 0.15s ease', border: '1px solid var(--border)' }}
+          onClick={() => navigate('/teacher/submissions')}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#111827')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
+            <span style={{ padding: '0.4rem', borderRadius: '6px', background: '#eff6ff', color: '#2563eb' }}>
+              <FileCheck size={18} />
+            </span>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>Submission Tracker</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Verify student coursework submissions and monitor real-time class submission percentages.
+          </p>
+        </div>
+
+        <div
+          className="card"
+          style={{ padding: '1.25rem', cursor: 'pointer', transition: 'all 0.15s ease', border: '1px solid var(--border)' }}
+          onClick={() => navigate('/teacher/doubts')}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#111827')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
+            <span style={{ padding: '0.4rem', borderRadius: '6px', background: '#fdf2f8', color: '#db2777' }}>
+              <HelpCircle size={18} />
+            </span>
+            <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>Doubt &amp; Clarifications</strong>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Address student lecture inquiries and publish verified answers with instant delivery.
+          </p>
+        </div>
       </div>
 
       {/* FEATURE 1: TEACHER AVAILABILITY SECTION */}
@@ -566,6 +658,156 @@ const TeacherDashboard = () => {
         </Link>
       </div>
 
+      {/* Class Performance and Attendance Analytics Section */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+              Class Performance & Attendance Analytics
+            </h2>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+              Real-time academic evaluation metrics and verified attendance for your assigned instructional cohorts
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+              Assigned Courses: {teacherCourses.length}
+            </span>
+            <span className="badge" style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.75rem' }}>
+              At-Risk Students: {atRiskCount}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+          
+          {/* Chart 1: Subject-Wise Average Marks */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Cohort Average Marks by Course
+                </h3>
+                <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                  Mean percentage across all enrolled students in your classes
+                </p>
+              </div>
+              <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                Benchmark: 60%
+              </span>
+            </div>
+
+            {coursePerformanceChartData.length > 0 ? (
+              <div style={{ width: '100%', height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={coursePerformanceChartData} margin={{ top: 10, right: 15, left: -10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="code" tick={{ fill: '#475569', fontSize: 11 }} interval={0} angle={-15} textAnchor="end" />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 11 }} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload;
+                          return (
+                            <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.65rem 0.85rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', color: '#0f172a', fontSize: '0.825rem' }}>
+                              <strong style={{ display: 'block', marginBottom: '0.25rem', color: '#0f172a' }}>{item.name} ({label})</strong>
+                              <div style={{ color: '#2563eb', fontWeight: 700, marginBottom: '0.25rem' }}>
+                                Class Average: {item.averageGrade}%
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                Cohort Size: {item.enrolledStudents} students
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                Submissions Completed: {item.completedSubmissions}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <ReferenceLine y={60} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: 'Passing Benchmark (60%)', position: 'insideTopLeft', fill: '#d97706', fontSize: 10 }} />
+                    <Bar dataKey="averageGrade" fill="#2563eb" name="Class Average (%)" radius={[4, 4, 0, 0]} maxBarSize={38} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                No student assessment grades are recorded yet for your assigned classes.
+              </div>
+            )}
+            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+              Tracks overall cohort performance per assigned subject based on recorded continuous assessments.
+            </div>
+          </div>
+
+          {/* Chart 2: Attendance Percentage by Subject */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Class Attendance Rate by Course
+                </h3>
+                <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                  Aggregated roll call attendance against 75% institutional policy
+                </p>
+              </div>
+              <span className="badge" style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', fontSize: '0.75rem' }}>
+                Threshold: 75%
+              </span>
+            </div>
+
+            {courseAttendanceChartData.length > 0 ? (
+              <div style={{ width: '100%', height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={courseAttendanceChartData} margin={{ top: 10, right: 15, left: -10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="code" tick={{ fill: '#475569', fontSize: 11 }} interval={0} angle={-15} textAnchor="end" />
+                    <YAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 11 }} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload;
+                          const isBelow = item.attendanceRate < 75;
+                          return (
+                            <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.65rem 0.85rem', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', color: '#0f172a', fontSize: '0.825rem' }}>
+                              <strong style={{ display: 'block', marginBottom: '0.25rem', color: '#0f172a' }}>{item.name} ({label})</strong>
+                              <div style={{ color: isBelow ? '#dc2626' : '#16a34a', fontWeight: 700, marginBottom: '0.25rem' }}>
+                                Class Attendance: {item.attendanceRate}% {isBelow ? '(Below Threshold)' : '(Compliant)'}
+                              </div>
+                              {item.totalSessions > 0 && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                  Sessions logged: {item.attendedSessions} present of {item.totalSessions} total student records
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <ReferenceLine y={75} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: '75% Required', position: 'insideTopLeft', fill: '#dc2626', fontSize: 10, fontWeight: 700 }} />
+                    <Bar dataKey="attendanceRate" name="Attendance Rate (%)" radius={[4, 4, 0, 0]} maxBarSize={38}>
+                      {courseAttendanceChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.isBelowBenchmark ? '#ef4444' : '#10b981'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                No attendance logs found for your assigned courses. Use "Take Attendance" above to record sessions.
+              </div>
+            )}
+            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+              Green: Class attendance ≥ 75.0%. Red: Class falls below mandatory attendance standard.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       {/* Courses List */}
       <div style={{ marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -651,21 +893,14 @@ const TeacherDashboard = () => {
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)' }}
               >
-                <optgroup label="✨ Clearly Labelled Demo Classes (Fictional Students)">
-                  {DEMO_CLASSES.map((dc) => (
-                    <option key={dc.id} value={dc.id}>
-                      {dc.name} ({dc.students.length} demo students)
+                {dashboard.courses && dashboard.courses.length > 0 ? (
+                  dashboard.courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} — {c.name}
                     </option>
-                  ))}
-                </optgroup>
-                {dashboard.courses && dashboard.courses.length > 0 && (
-                  <optgroup label="📚 Official Catalog Courses">
-                    {dashboard.courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.code} — {c.name}
-                      </option>
-                    ))}
-                  </optgroup>
+                  ))
+                ) : (
+                  <option value="">No courses assigned yet</option>
                 )}
               </select>
             </div>
@@ -689,11 +924,6 @@ const TeacherDashboard = () => {
               <strong style={{ fontSize: '0.95rem', color: 'var(--text-main)' }}>
                 Class Roster ({attendanceRoster.length} Students)
               </strong>
-              {Number(selectedClassId) < 0 && (
-                <span className="badge" style={{ marginLeft: '0.5rem', background: '#111111', color: '#ffffff', fontSize: '0.75rem' }}>
-                  Demo Class Sandbox
-                </span>
-              )}
             </div>
             <Button
               type="button"
@@ -708,7 +938,12 @@ const TeacherDashboard = () => {
 
           {/* Students Roster List */}
           <div style={{ maxHeight: '340px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.5rem', paddingRight: '0.25rem' }}>
-            {attendanceRoster.map((student) => (
+            {attendanceRoster.length === 0 ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                No students enrolled in this course or class yet.
+              </div>
+            ) : (
+              attendanceRoster.map((student) => (
               <div
                 key={student.studentId}
                 style={{
@@ -761,7 +996,7 @@ const TeacherDashboard = () => {
                   })}
                 </div>
               </div>
-            ))}
+            )))}
           </div>
 
           {/* Modal Actions */}

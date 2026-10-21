@@ -29,6 +29,7 @@ import com.Studentmangment.studentmanagement.entity.GradeDetails;
 import com.Studentmangment.studentmanagement.entity.InterventionCase;
 import com.Studentmangment.studentmanagement.entity.LearningResource;
 import com.Studentmangment.studentmanagement.entity.LibraryBook;
+import com.Studentmangment.studentmanagement.entity.ParentContact;
 import com.Studentmangment.studentmanagement.entity.Role;
 import com.Studentmangment.studentmanagement.entity.Student;
 import com.Studentmangment.studentmanagement.entity.StudentCourseDetails;
@@ -92,6 +93,38 @@ public class DevelopmentSeedDataConfig {
         Student s28 = student(entityManager, passwordEncoder, studentRole, "test.student28", "Bhavna", "Raman");
         Student s29 = student(entityManager, passwordEncoder, studentRole, "test.student29", "Gaurav", "Mishra");
         Student s30 = student(entityManager, passwordEncoder, studentRole, "test.student30", "Swati", "Chawla");
+
+        // Seed Parent / Guardian Contacts for Students (Indian contact details, relationships, and consent)
+        guardian(entityManager, s1, "Ramesh Kumar", "FATHER", "+91 98765 43210", "ramesh.kumar@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s2, "Lakshmi Nair", "MOTHER", "+91 98450 12345", "lakshmi.nair@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s3, "Gopal Iyer", "FATHER", "+91 97312 34567", "gopal.iyer@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s4, "Kavita Varma", "MOTHER", "+91 99801 23456", "kavita.varma@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s5, "Debashish Sen", "FATHER", "+91 98200 54321", "debashish.sen@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s6, "Manohar Sharma", "FATHER", "+91 94480 67890", "manohar.sharma@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s7, "Sunil Chopra", "FATHER", "+91 94481 23456", "sunil.chopra@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s8, "Bhavin Patel", "FATHER", "+91 98980 12345", "bhavin.patel@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s9, "Anirban Bose", "FATHER", "+91 98300 23456", "anirban.bose@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s10, "Sanjay Joshi", "FATHER", "+91 98230 34567", "sanjay.joshi@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s11, "Vandana Gupta", "MOTHER", "+91 98111 22334", "vandana.gupta@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s12, "Venkat Reddy", "FATHER", "+91 98490 45678", "venkat.reddy@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s13, "Arun Singhania", "FATHER", "+91 98311 56789", "arun.singhania@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s14, "Rajiv Aggarwal", "FATHER", "+91 98222 33445", "rajiv.aggarwal@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s15, "Meenakshi Bhatt", "MOTHER", "+91 98190 67890", "meenakshi.bhatt@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s16, "Prakash Malhotra", "FATHER", "+91 98333 44556", "prakash.malhotra@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s17, "Satish Hegde", "FATHER", "+91 94490 78901", "satish.hegde@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s18, "Raman Sundaram", "FATHER", "+91 98400 89012", "raman.sundaram@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s19, "Radhika Pillai", "MOTHER", "+91 98444 55667", "radhika.pillai@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s20, "Alok Tripathi", "FATHER", "+91 94150 90123", "alok.tripathi@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s21, "Mukesh Goyal", "FATHER", "+91 98101 01234", "mukesh.goyal@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s22, "Vinod Kulkarni", "FATHER", "+91 98555 66778", "vinod.kulkarni@example.com", "en-IN", "OPTED_OUT");
+        guardian(entityManager, s23, "Madhavan Nambisan", "FATHER", "+91 94470 12345", "madhavan.n@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s24, "Suresh Prabhu", "FATHER", "+91 98201 23456", "suresh.prabhu@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s25, "Rakesh Kapoor", "FATHER", "+91 98112 34567", "rakesh.kapoor@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s26, "Anil Saxena", "FATHER", "+91 98260 45678", "anil.saxena@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s27, "Farooq Khan", "FATHER", "+91 98666 77889", "farooq.khan@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s28, "Krishnan Raman", "FATHER", "+91 98410 56789", "krishnan.r@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s29, "Deepak Mishra", "FATHER", "+91 94500 67890", "deepak.mishra@example.com", "en-IN", "CONSENTED");
+        guardian(entityManager, s30, "Neelam Chawla", "MOTHER", "+91 98777 88990", "neelam.chawla@example.com", "en-IN", "CONSENTED");
 
         // 3. 12 Courses across 4 Major Programmes
         Course dataScience          = course(entityManager, "DAP-DS101", "Data Science Foundations", teacherOne);
@@ -386,6 +419,7 @@ public class DevelopmentSeedDataConfig {
         student.setRole(role);
         student.setCourses(new ArrayList<>());
         entityManager.persist(student);
+        entityManager.flush();
         return student;
     }
 
@@ -626,5 +660,18 @@ public class DevelopmentSeedDataConfig {
         an.setRead(false);
         an.setSeedKey(seedKey);
         entityManager.persist(an);
+    }
+
+    private void guardian(EntityManager entityManager, Student student, String guardianName, String relationship,
+                          String phone, String email, String language, String consentStatus) {
+        List<ParentContact> existing = entityManager
+            .createQuery("from ParentContact where studentId=:studentId", ParentContact.class)
+            .setParameter("studentId", student.getId())
+            .getResultList();
+        if (!existing.isEmpty()) {
+            return;
+        }
+        ParentContact pc = new ParentContact(student.getId(), guardianName, relationship, phone, email, language, consentStatus);
+        entityManager.persist(pc);
     }
 }
